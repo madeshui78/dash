@@ -198,28 +198,45 @@ class EssayStore {
         .where((String s) => s.trim().length > 2)
         .join('\n');
 
-    final String raw = await AiService.chat(
+    String build(String extra) => '按下面的要求写一篇英语精读文章：\n$prompt\n\n'
+        '要求没写清楚的地方，按这些默认值补：约 400 词、3-4 段、'
+        '议论文或说明文、难度相当于中国高中/CET4。\n'
+        '用词地道，句式有变化，别用太生僻的词。\n'
+        '${avoid.isEmpty ? '' : '不要和最近这些文章重复（标题和主题都要换）：\n$avoid\n'}'
+        '如果题目没指定，换一个新的切入角度，不要套常见范文。\n'
+        '$extra'
+        '输出格式：第一行写 TITLE: 英文标题，空一行后写正文。'
+        '只输出作文，不要解释、不要中文翻译。';
+
+    String raw = await AiService.chat(
       cfg,
-      <ChatMessage>[
-        ChatMessage(
-          role: 'user',
-          content: '按下面的要求写一篇英语精读文章：\n$prompt\n\n'
-              '要求没写清楚的地方，按这些默认值补：约 400 词、3-4 段、'
-              '议论文或说明文、难度相当于中国高中/CET4。\n'
-              '用词地道，句式有变化，别用太生僻的词。\n'
-              '${avoid.isEmpty ? '' : '不要和最近这些文章重复（标题和主题都要换）：\n$avoid\n'}'
-              '如果题目没指定，换一个新的切入角度，不要套常见范文。\n'
-              '输出格式：第一行写 TITLE: 英文标题，空一行后写正文。'
-              '只输出作文，不要解释、不要中文翻译。',
-        ),
-      ],
+      <ChatMessage>[ChatMessage(role: 'user', content: build(''))],
       systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。'
           '每次都要写新的标题和内容。',
     );
 
+    final Set<String> used = recent
+        .map((Essay e) => e.title.trim().toLowerCase())
+        .where((String t) => t.isNotEmpty)
+        .toSet();
+    String title = _pickTitle(raw);
+    if (used.contains(title.toLowerCase())) {
+      raw = await AiService.chat(
+        cfg,
+        <ChatMessage>[
+          ChatMessage(
+            role: 'user',
+            content: build('上一次的标题和已有文章重复了，必须换一个完全不同的标题和内容。\n'),
+          ),
+        ],
+        systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。',
+      );
+      title = _pickTitle(raw);
+    }
+
     return _save(
       topic: 'custom',
-      title: _pickTitle(raw),
+      title: title,
       body: _stripTitle(raw),
       track: track,
     );

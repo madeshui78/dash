@@ -600,8 +600,17 @@ class _EssayPageState extends State<EssayPage> {
   Future<void> _regenerate() async {
     if (_lastWebQuery != null) {
       await _load(forceNew: true, webQuery: _lastWebQuery);
+    } else if (_topic == 'web' && _essay != null) {
+      // 重启后没记住原始搜索词，就拿当前标题再搜一篇（会跳过最近用过的）
+      await _load(forceNew: true, webQuery: _essay!.title);
     } else if (_lastPrompt != null) {
       await _load(forceNew: true, prompt: _lastPrompt);
+    } else if (_topic == 'custom' && _essay != null) {
+      await _load(
+        forceNew: true,
+        prompt: '围绕「${_essay!.title}」再写一篇，换个角度和结构，'
+            '不要重复原来的标题和内容',
+      );
     } else {
       await _load(forceNew: true);
     }
