@@ -62,7 +62,12 @@ class _EssayNotesPageState extends State<EssayNotesPage> {
     Navigator.of(context).pop();
     EssayFocus.switchToEssay.value = true;
     EssayFocus.go(
-      EssayFocusRequest(essayId: n.essayId, word: n.word, para: para),
+      EssayFocusRequest(
+        essayId: n.essayId,
+        word: n.word,
+        para: para,
+        markOnOpen: true,
+      ),
     );
   }
 

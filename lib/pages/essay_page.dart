@@ -286,10 +286,19 @@ class _EssayPageState extends State<EssayPage> {
     return chunks.map(tokenizeEssay).toList();
   }
 
-  void _onFocusRequest() {
+  void _onFocusRequest() async {
     final EssayFocusRequest? req = EssayFocus.request.value;
     if (req == null) return;
-    _openEssay(req.essayId, word: req.word, para: req.para);
+    await _openEssay(req.essayId, word: req.word, para: req.para);
+
+    // 从批注本进来的词：标红（字变红）+ 已有蓝色下划线，两种标记同时可见
+    if (req.markOnOpen && mounted) {
+      final String key = req.word.trim().toLowerCase();
+      if (key.isNotEmpty && _marked.add(key)) {
+        await _syncMarks();
+        if (mounted) setState(() {});
+      }
+    }
     EssayFocus.clear();
   }
 

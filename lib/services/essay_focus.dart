@@ -14,10 +14,14 @@ class EssayFocusRequest {
   /// 第几段
   final int para;
 
+  /// 从批注本跳过来时，顺手把这个词也标红
+  final bool markOnOpen;
+
   const EssayFocusRequest({
     required this.essayId,
     required this.word,
     required this.para,
+    this.markOnOpen = false,
   });
 }
 
