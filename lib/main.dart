@@ -24,6 +24,7 @@ import 'pages/stats_page.dart';
 import 'pages/word_list_page.dart';
 import 'pages/wrong_word_page.dart';
 import 'services/chat_focus.dart';
+import 'services/essay_focus.dart';
 import 'services/starter_words.dart';
 import 'services/theme_store.dart';
 import 'services/track_store.dart';
@@ -98,9 +99,7 @@ class EnglishApp extends StatelessWidget {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: mode,
-          home: const ConsentGate(
-            child: KeyGate(child: _EntryPoint()),
-          ),
+          home: const ConsentGate(child: KeyGate(child: _EntryPoint())),
         );
       },
     );
@@ -124,12 +123,7 @@ class _HomePageState extends State<HomePage> {
 
   late final List<Widget> _pages;
 
-  static const List<String> _titles = <String>[
-    '作文',
-    '单词本',
-    '错词本',
-    '问答',
-  ];
+  static const List<String> _titles = <String>['作文', '单词本', '错词本', '问答'];
 
   @override
   void initState() {
@@ -144,6 +138,13 @@ class _HomePageState extends State<HomePage> {
       const ChatPage(),
     ];
     ChatFocus.mode.addListener(_onModeRequest);
+    EssayFocus.switchToEssay.addListener(_onEssayTab);
+  }
+
+  void _onEssayTab() {
+    if (!EssayFocus.switchToEssay.value) return;
+    EssayFocus.switchToEssay.value = false;
+    setState(() => _index = 0);
   }
 
   void _onModeRequest() {
@@ -154,6 +155,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     ChatFocus.mode.removeListener(_onModeRequest);
+    EssayFocus.switchToEssay.removeListener(_onEssayTab);
     _refreshTick.dispose();
     super.dispose();
   }
@@ -172,7 +174,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openPage(Widget page, String title) async {
     await Navigator.of(context).push<Object?>(
-      SmoothRoute<Object?>(page: _StandalonePage(title: title, child: page)),
+      SmoothRoute<Object?>(
+        page: _StandalonePage(title: title, child: page),
+      ),
     );
     _refreshTick.value++;
   }
@@ -200,38 +204,39 @@ class _HomePageState extends State<HomePage> {
         systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(
-      appBar: AppBar(
-        leading: Builder(
-          builder: (BuildContext ctx) => FxIconButton(
-            icon: Icons.menu_rounded,
-            fx: TapFx.slideRight,
-            tooltip: '菜单',
-            size: 22,
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: Text(_titles[_index]),
-        actions: <Widget>[
-          if (_index == 1)
-            FxIconButton(
-              icon: Icons.refresh,
-              fx: TapFx.spin,
-              tooltip: '刷新',
-              onPressed: () => _refreshTick.value++,
+        appBar: AppBar(
+          leading: Builder(
+            builder: (BuildContext ctx) => FxIconButton(
+              icon: Icons.menu_rounded,
+              fx: TapFx.slideRight,
+              tooltip: '菜单',
+              size: 22,
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
-        ],
+          ),
+          title: Text(_titles[_index]),
+          actions: <Widget>[
+            if (_index == 1)
+              FxIconButton(
+                icon: Icons.refresh,
+                fx: TapFx.spin,
+                tooltip: '刷新',
+                onPressed: () => _refreshTick.value++,
+              ),
+          ],
+        ),
+        drawer: _AppDrawer(
+          track: _track,
+          refreshTick: _refreshTick,
+          onSwitchTrack: _switchTrack,
+          onOpenPage: _openPage,
+          onPush: _push,
+        ),
+        body: _AnimatedBody(index: _index, pages: _pages),
+        bottomNavigationBar: _ArcNavBar(index: _index, onTap: _onTap),
+        backgroundColor: p.canvas,
       ),
-      drawer: _AppDrawer(
-        track: _track,
-        refreshTick: _refreshTick,
-        onSwitchTrack: _switchTrack,
-        onOpenPage: _openPage,
-        onPush: _push,
-      ),
-      body: _AnimatedBody(index: _index, pages: _pages),
-      bottomNavigationBar: _ArcNavBar(index: _index, onTap: _onTap),
-      backgroundColor: p.canvas,
-    ));
+    );
   }
 }
 
@@ -394,14 +399,12 @@ class _NavItem extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
             decoration: BoxDecoration(
-              color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
+              color: selected
+                  ? color.withValues(alpha: 0.12)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 21,
-              color: selected ? color : p.muted,
-            ),
+            child: Icon(icon, size: 21, color: selected ? color : p.muted),
           ),
           const SizedBox(height: 2),
           Text(
@@ -486,10 +489,7 @@ class _AppDrawer extends StatelessWidget {
                   divider: true,
                   onTap: () {
                     Navigator.of(context).pop();
-                    onOpenPage(
-                      AddWordPage(refreshTick: refreshTick),
-                      '添加单词',
-                    );
+                    onOpenPage(AddWordPage(refreshTick: refreshTick), '添加单词');
                   },
                 ),
                 _DrawerRow(
@@ -500,10 +500,7 @@ class _AppDrawer extends StatelessWidget {
                   divider: true,
                   onTap: () {
                     Navigator.of(context).pop();
-                    onOpenPage(
-                      StatsPage(refreshTick: refreshTick),
-                      '统计',
-                    );
+                    onOpenPage(StatsPage(refreshTick: refreshTick), '统计');
                   },
                 ),
                 _DrawerRow(
@@ -740,10 +737,7 @@ class _FieldBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: p.muted),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, color: p.muted)),
           const SizedBox(height: 10),
           child,
         ],
@@ -803,9 +797,8 @@ class _EntryPoint extends StatelessWidget {
   Widget build(BuildContext context) {
     return CheckInPage(
       onEnter: () {
-        Navigator.of(context).pushReplacement(
-          SmoothRoute<Object?>(page: const HomePage()),
-        );
+        Navigator.of(context)
+            .pushReplacement(SmoothRoute<Object?>(page: const HomePage()));
       },
     );
   }

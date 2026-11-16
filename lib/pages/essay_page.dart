@@ -153,11 +153,11 @@ class _EssayPageState extends State<EssayPage> {
       final Essay essay = webQuery != null
           ? await EssayStore.fromWeb(webQuery)
           : (prompt != null
-              ? await EssayStore.fromPrompt(prompt)
-              : await EssayStore.todayEssay(
-                  forceNew: forceNew,
-                  options: options ?? _prefs,
-                ));
+                ? await EssayStore.fromPrompt(prompt)
+                : await EssayStore.todayEssay(
+                    forceNew: forceNew,
+                    options: options ?? _prefs,
+                  ));
       _topic = essay.topic;
       await _prepare(essay);
     } catch (e) {
@@ -172,12 +172,15 @@ class _EssayPageState extends State<EssayPage> {
   /// 把文章切成段、分词、查词库、读回标记
   Future<void> _prepare(Essay essay, {int? focusPara}) async {
     final List<List<EssayToken>> paras = _splitParas(essay.text);
-    final List<EssayMark> marks =
-        await DatabaseHelper.instance.getEssayMarks(essay.id);
-    final List<WordNote> notes =
-        await DatabaseHelper.instance.getWordNotes(essay.id);
-    final String? savedZh =
-        await DatabaseHelper.instance.getEssayTranslation(essay.id);
+    final List<EssayMark> marks = await DatabaseHelper.instance.getEssayMarks(
+      essay.id,
+    );
+    final List<WordNote> notes = await DatabaseHelper.instance.getWordNotes(
+      essay.id,
+    );
+    final String? savedZh = await DatabaseHelper.instance.getEssayTranslation(
+      essay.id,
+    );
 
     // 本地词库批量查一遍（原词 + 词形还原）
     final List<String> lookups = <String>[];
@@ -186,8 +189,7 @@ class _EssayPageState extends State<EssayPage> {
         if (t.word != null) lookups.addAll(lemmaCandidates(t.word!));
       }
     }
-    final Map<String, Word> found =
-        await DatabaseHelper.instance.findByEnBatch(
+    final Map<String, Word> found = await DatabaseHelper.instance.findByEnBatch(
       track: _track,
       words: lookups,
     );
@@ -221,8 +223,8 @@ class _EssayPageState extends State<EssayPage> {
         .where((String k) => !dict.containsKey(k) && !_aiDict.containsKey(k))
         .toList();
     if (unknownKeys.isNotEmpty) {
-      final Map<String, String> cached =
-          await DatabaseHelper.instance.getGlosses(unknownKeys);
+      final Map<String, String> cached = await DatabaseHelper.instance
+          .getGlosses(unknownKeys);
       cached.forEach((String k, String zh) {
         if (zh.isNotEmpty) {
           _aiDict[k] = WordEntry(
@@ -291,11 +293,7 @@ class _EssayPageState extends State<EssayPage> {
     EssayFocus.clear();
   }
 
-  Future<void> _openEssay(
-    String id, {
-    String? word,
-    int para = 0,
-  }) async {
+  Future<void> _openEssay(String id, {String? word, int para = 0}) async {
     final Essay? essay = await DatabaseHelper.instance.getEssayById(id);
     if (!mounted) return;
     if (essay == null) {
@@ -360,12 +358,12 @@ class _EssayPageState extends State<EssayPage> {
         for (int j = 0; j < 2; j++) {
           final int start = i + j * size;
           if (start >= todo.length) break;
-          final int end =
-              start + size > todo.length ? todo.length : start + size;
+          final int end = start + size > todo.length
+              ? todo.length
+              : start + size;
           jobs.add(AiService.lookupGlosses(cfg, todo.sublist(start, end)));
         }
-        final List<Map<String, String>> results =
-            await Future.wait(jobs);
+        final List<Map<String, String>> results = await Future.wait(jobs);
 
         final Map<String, String> merged = <String, String>{};
         for (final Map<String, String> r in results) {
@@ -454,10 +452,12 @@ class _EssayPageState extends State<EssayPage> {
     }
 
     // 取消掉的词，如果是作文带进错词本的，一起撤掉
-    final Set<String> oldWords =
-        _marks.map((EssayMark m) => m.word.toLowerCase()).toSet();
-    final Set<String> newWords =
-        next.map((EssayMark m) => m.word.toLowerCase()).toSet();
+    final Set<String> oldWords = _marks
+        .map((EssayMark m) => m.word.toLowerCase())
+        .toSet();
+    final Set<String> newWords = next
+        .map((EssayMark m) => m.word.toLowerCase())
+        .toSet();
 
     await DatabaseHelper.instance.replaceEssayMarks(essay.id, next);
 
@@ -573,8 +573,9 @@ class _EssayPageState extends State<EssayPage> {
     final Essay? essay = _essay;
     if (essay == null) return;
     final String key = raw.toLowerCase();
-    final TextEditingController ctrl =
-        TextEditingController(text: _notes[key] ?? '');
+    final TextEditingController ctrl = TextEditingController(
+      text: _notes[key] ?? '',
+    );
     final bool has = (_notes[key] ?? '').isNotEmpty;
 
     final String? result = await showModalBottomSheet<String>(
@@ -584,81 +585,85 @@ class _EssayPageState extends State<EssayPage> {
       showDragHandle: true,
       builder: (BuildContext ctx) {
         final ModulePalette p = ModulePalette.of(ctx);
-        final double avail = MediaQuery.sizeOf(ctx).height -
-            MediaQuery.viewInsetsOf(ctx).bottom;
+        final double avail =
+            MediaQuery.sizeOf(ctx).height - MediaQuery.viewInsetsOf(ctx).bottom;
         final double h = (avail * 0.72).clamp(300.0, 620.0);
 
-        return SizedBox(
-          height: h,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  '批注 · $raw',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: p.ink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '只记在这篇文章里，之后可以在「批注本」回看。',
-                  style: TextStyle(fontSize: 11.5, color: p.muted),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: TextField(
-                    controller: ctrl,
-                    autofocus: true,
-                    expands: true,
-                    maxLines: null,
-                    minLines: null,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(fontSize: 14, height: 1.5),
-                    decoration: InputDecoration(
-                      hintText: '记下你的理解、搭配、易错点…',
-                      hintStyle: TextStyle(fontSize: 13, color: p.muted),
-                      filled: true,
-                      fillColor: p.surface,
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: p.line),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: p.line),
-                      ),
+        // 整层抬到键盘上方，否则输入框会被输入法盖住
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SizedBox(
+            height: h,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    '批注 · $raw',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: p.ink,
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    if (has)
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop('__delete__'),
-                        child: Text(
-                          '删除批注',
-                          style: TextStyle(fontSize: 12, color: p.wrong),
+                  const SizedBox(height: 4),
+                  Text(
+                    '只记在这篇文章里，之后可以在「批注本」回看。',
+                    style: TextStyle(fontSize: 11.5, color: p.muted),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: ctrl,
+                      autofocus: true,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(fontSize: 14, height: 1.5),
+                      decoration: InputDecoration(
+                        hintText: '记下你的理解、搭配、易错点…',
+                        hintStyle: TextStyle(fontSize: 13, color: p.muted),
+                        filled: true,
+                        fillColor: p.surface,
+                        contentPadding: const EdgeInsets.all(12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: p.line),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: p.line),
                         ),
                       ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.of(ctx).pop(ctrl.text.trim()),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: p.blue,
-                        minimumSize: const Size(96, 44),
-                      ),
-                      child: const Text('保存'),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      if (has)
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop('__delete__'),
+                          child: Text(
+                            '删除批注',
+                            style: TextStyle(fontSize: 12, color: p.wrong),
+                          ),
+                        ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () =>
+                            Navigator.of(ctx).pop(ctrl.text.trim()),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: p.blue,
+                          minimumSize: const Size(96, 44),
+                        ),
+                        child: const Text('保存'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -690,18 +695,15 @@ class _EssayPageState extends State<EssayPage> {
     try {
       final AiConfig cfg = await AiService.loadConfig();
       final String ctx = _sentenceAround(raw);
-      out = await AiService.chat(
-        cfg,
-        <ChatMessage>[
-          ChatMessage(
-            role: 'user',
-            content: '讲一下英文 "$raw"。'
-                '${ctx.isEmpty ? '' : '它出现在这句里：$ctx\n'}'
-                '按这几块回答：句中的意思、常见释义和词性、词根词缀、两个常用搭配、一个例句。',
-          ),
-        ],
-        systemPrompt: '你是一名英语老师，讲解具体、简短，不写客套话。',
-      );
+      out = await AiService.chat(cfg, <ChatMessage>[
+        ChatMessage(
+          role: 'user',
+          content:
+              '讲一下英文 "$raw"。'
+              '${ctx.isEmpty ? '' : '它出现在这句里：$ctx\n'}'
+              '按这几块回答：句中的意思、常见释义和词性、词根词缀、两个常用搭配、一个例句。',
+        ),
+      ], systemPrompt: '你是一名英语老师，讲解具体、简短，不写客套话。');
     } catch (e) {
       out = 'AI 没答上来：$e';
     }
@@ -741,7 +743,8 @@ class _EssayPageState extends State<EssayPage> {
     } else if (_topic == 'custom' && _essay != null) {
       await _load(
         forceNew: true,
-        prompt: '围绕「${_essay!.title}」再写一篇，换个角度和结构，'
+        prompt:
+            '围绕「${_essay!.title}」再写一篇，换个角度和结构，'
             '不要重复原来的标题和内容',
       );
     } else {
@@ -778,8 +781,9 @@ class _EssayPageState extends State<EssayPage> {
   /// 自定义：体裁、字数、难度、内容要求
   Future<void> _openCustomSheet() async {
     EssayPrefs draft = _prefs;
-    final TextEditingController req =
-        TextEditingController(text: draft.requirement);
+    final TextEditingController req = TextEditingController(
+      text: draft.requirement,
+    );
 
     final EssayPrefs? result = await showModalBottomSheet<EssayPrefs>(
       context: context,
@@ -788,8 +792,12 @@ class _EssayPageState extends State<EssayPage> {
       builder: (BuildContext ctx) {
         return StatefulBuilder(
           builder: (BuildContext ctx, StateSetter setSheet) {
-            Widget chips<T>(List<T> values, T current, String Function(T) label,
-                ValueChanged<T> onPick) {
+            Widget chips<T>(
+              List<T> values,
+              T current,
+              String Function(T) label,
+              ValueChanged<T> onPick,
+            ) {
               return Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -916,8 +924,10 @@ class _EssayPageState extends State<EssayPage> {
 
   /// 历史：今天以前的作文都在，点一条就能打开
   Future<void> _openHistory() async {
-    final List<Essay> list =
-        await DatabaseHelper.instance.getRecentEssays(track: _track, limit: 30);
+    final List<Essay> list = await DatabaseHelper.instance.getRecentEssays(
+      track: _track,
+      limit: 30,
+    );
     if (!mounted) return;
     if (list.isEmpty) {
       _toast('还没有历史作文');
@@ -984,21 +994,44 @@ class _EssayPageState extends State<EssayPage> {
           .map((String s) => s.trim())
           .where((String s) => s.isNotEmpty)
           .toList();
+      // 每 450 词左右切一块：长论文一次丢给 AI 会超时/截断
       final List<String> chunks = <String>[];
-      if (paras.length >= 3) {
-        final int n = paras.length >= 6 ? 3 : 2;
-        final int per = (paras.length / n).ceil();
-        for (int i = 0; i < paras.length; i += per) {
-          final int end = i + per > paras.length ? paras.length : i + per;
-          chunks.add(paras.sublist(i, end).join('\n\n'));
+      final StringBuffer buf = StringBuffer();
+      int bufWords = 0;
+      for (final String p in paras) {
+        final int w = RegExp(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*")
+            .allMatches(p)
+            .length;
+        if (bufWords > 0 && bufWords + w > 450) {
+          chunks.add(buf.toString());
+          buf.clear();
+          bufWords = 0;
         }
-      } else {
-        chunks.add(essay.text);
+        if (buf.isNotEmpty) buf.write('\n\n');
+        buf.write(p);
+        bufWords += w;
       }
+      if (buf.isNotEmpty) chunks.add(buf.toString());
+      if (chunks.isEmpty) chunks.add(essay.text);
 
-      final List<List<Map<String, String>>> results = await Future.wait(
-        chunks.map((String t) => AiService.translateSentences(cfg, t)),
-      );
+      final List<List<Map<String, String>>> results =
+          <List<Map<String, String>>>[];
+      for (int i = 0; i < chunks.length; i += 2) {
+        final List<String> batch = chunks.sublist(
+          i,
+          i + 2 > chunks.length ? chunks.length : i + 2,
+        );
+        final List<List<Map<String, String>>> part = await Future.wait(
+          batch.map((String t) async {
+            try {
+              return await AiService.translateSentences(cfg, t);
+            } catch (_) {
+              return <Map<String, String>>[];
+            }
+          }),
+        );
+        results.addAll(part);
+      }
 
       final List<EssayPair> pairs = <EssayPair>[];
       for (final List<Map<String, String>> part in results) {
@@ -1006,7 +1039,9 @@ class _EssayPageState extends State<EssayPage> {
           pairs.add(EssayPair(en: m['en'] ?? '', zh: m['zh'] ?? ''));
         }
       }
-      if (pairs.isEmpty) throw Exception('没解析出译文，换个说法再试');
+      if (pairs.isEmpty) {
+        throw Exception('这篇太长或句式太密，AI 没返回译文；再点一次试试');
+      }
 
       await DatabaseHelper.instance.saveEssayTranslation(
         essay.id,
@@ -1231,13 +1266,13 @@ class _EssayPageState extends State<EssayPage> {
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : (_error != null
-              ? _errorView(p)
-              : Column(
-                  children: <Widget>[
-                    Expanded(child: _article(p)),
-                    _translationBar(p),
-                  ],
-                )),
+                ? _errorView(p)
+                : Column(
+                    children: <Widget>[
+                      Expanded(child: _article(p)),
+                      _translationBar(p),
+                    ],
+                  )),
     );
 
     if (widget.embedded) return body;
@@ -1405,10 +1440,7 @@ class _EssayPageState extends State<EssayPage> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               const SizedBox(width: 8),
-              Text(
-                '补释义',
-                style: TextStyle(fontSize: 11, color: p.muted),
-              ),
+              Text('补释义', style: TextStyle(fontSize: 11, color: p.muted)),
             ],
           ),
         const SizedBox(height: 22),
@@ -1449,8 +1481,8 @@ class _EssayPageState extends State<EssayPage> {
                   _topic == 'web'
                       ? '联网摘录'
                       : (_topic == 'custom'
-                          ? 'AI 生成'
-                          : '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词'),
+                            ? 'AI 生成'
+                            : '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1546,6 +1578,7 @@ class _WordText extends StatelessWidget {
           ? TextDecorationStyle.solid
           : TextDecorationStyle.dotted,
       decorationColor: annotated ? p.blue : p.line,
+      decorationThickness: annotated ? 2.4 : 1,
     );
 
     return InkWell(
@@ -1557,9 +1590,7 @@ class _WordText extends StatelessWidget {
             ? BoxDecoration(
                 color: p.amber.withValues(alpha: 0.30),
                 borderRadius: BorderRadius.circular(4),
-                border: Border(
-                  bottom: BorderSide(color: p.wrong, width: 2),
-                ),
+                border: Border(bottom: BorderSide(color: p.wrong, width: 2)),
               )
             : null,
         child: Column(
@@ -1676,10 +1707,7 @@ class _WordSheet extends StatelessWidget {
             ),
             if (example != null) ...<Widget>[
               const SizedBox(height: 10),
-              Text(
-                example,
-                style: TextStyle(fontSize: 14, color: p.muted),
-              ),
+              Text(example, style: TextStyle(fontSize: 14, color: p.muted)),
             ],
             if (root != null) ...<Widget>[
               const SizedBox(height: 8),
@@ -1779,10 +1807,7 @@ class _ComposeSheet extends StatefulWidget {
   final int initialMode;
   final String initialText;
 
-  const _ComposeSheet({
-    required this.initialMode,
-    required this.initialText,
-  });
+  const _ComposeSheet({required this.initialMode, required this.initialText});
 
   @override
   State<_ComposeSheet> createState() => _ComposeSheetState();

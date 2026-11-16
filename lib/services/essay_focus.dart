@@ -27,6 +27,9 @@ class EssayFocus {
   static final ValueNotifier<EssayFocusRequest?> request =
       ValueNotifier<EssayFocusRequest?>(null);
 
+  /// 从别的页面点「去原文」时，让主壳切到作文页签
+  static final ValueNotifier<bool> switchToEssay = ValueNotifier<bool>(false);
+
   static void go(EssayFocusRequest r) {
     request.value = r;
   }

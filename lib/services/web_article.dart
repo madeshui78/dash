@@ -29,6 +29,32 @@ class WebArticleService {
       'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
 
+  /// 词典/翻译站的典型特征：换一篇时最容易被它们污染
+  static const List<String> _junkHosts = <String>[
+    'iciba.com',
+    'youdao.com',
+    'dict.cn',
+    'dict.youdao',
+    'hujiang.com',
+    'koolearn.com',
+    'chazidian.com',
+    'cidianwang.com',
+    'zidian.',
+    'translate.google',
+    'bing.com/dict',
+  ];
+
+  static bool _isJunkPage(String title, String url) {
+    final String u = url.toLowerCase();
+    for (final String h in _junkHosts) {
+      if (u.contains(h)) return true;
+    }
+    if (RegExp(r'词典|在线翻译|音标|读音|用法大全|是什么意思|近义词|反义词').hasMatch(title)) {
+      return true;
+    }
+    return false;
+  }
+
   static Future<WebArticle> fetch(
     String query, {
     Set<String> avoidTitles = const <String>{},
@@ -43,24 +69,22 @@ class WebArticleService {
     }
 
     final String en = await _englishQuery(q);
-    final bool academic =
-        RegExp(r'论文|paper|研究|arxiv|study|research', caseSensitive: false)
-            .hasMatch(q);
+    final bool academic = RegExp(
+      r'论文|paper|研究|arxiv|study|research',
+      caseSensitive: false,
+    ).hasMatch(q);
 
     if (academic) {
-      final WebArticle? a =
-          await _fromArxiv(en, avoidTitles: avoidTitles);
+      final WebArticle? a = await _fromArxiv(en, avoidTitles: avoidTitles);
       if (a != null) return a;
     }
 
-    final WebArticle? b =
-        await _fromBing(en, avoidTitles: avoidTitles);
+    final WebArticle? b = await _fromBing(en, avoidTitles: avoidTitles);
     if (b != null) return b;
 
     // 学术没抓到、搜索也没抓到，再给 arXiv 一次机会
     if (!academic) {
-      final WebArticle? a =
-          await _fromArxiv(en, avoidTitles: avoidTitles);
+      final WebArticle? a = await _fromArxiv(en, avoidTitles: avoidTitles);
       if (a != null) return a;
     }
     throw Exception('没找到合适的英文文章，换个更具体的说法试试');
@@ -70,17 +94,14 @@ class WebArticleService {
   static Future<String> _englishQuery(String q) async {
     try {
       final AiConfig cfg = await AiService.loadConfig();
-      final String out = await AiService.chat(
-        cfg,
-        <ChatMessage>[
-          ChatMessage(
-            role: 'user',
-            content: '把下面的需求转成 2-5 个英文检索词，只输出检索词，'
-                '不要引号、不要解释：$q',
-          ),
-        ],
-        systemPrompt: '你负责把中文的阅读需求转成精准的英文搜索关键词。',
-      );
+      final String out = await AiService.chat(cfg, <ChatMessage>[
+        ChatMessage(
+          role: 'user',
+          content:
+              '把下面的需求转成 2-5 个英文检索词，只输出检索词，'
+              '不要引号、不要解释：$q',
+        ),
+      ], systemPrompt: '你负责把中文的阅读需求转成精准的英文搜索关键词。');
       final String s = out.replaceAll(RegExp(r'[\n"]'), ' ').trim();
       return s.isEmpty ? q : s;
     } catch (_) {
@@ -98,17 +119,16 @@ class WebArticleService {
         '${Uri.encodeQueryComponent('all:$query')}'
         '&start=0&max_results=8&sortBy=submittedDate&sortOrder=descending',
       );
-      final http.Response r =
-          await http.get(uri, headers: <String, String>{'User-Agent': _ua})
-              .timeout(const Duration(seconds: 18));
+      final http.Response r = await http
+          .get(uri, headers: <String, String>{'User-Agent': _ua})
+          .timeout(const Duration(seconds: 18));
       if (r.statusCode != 200) return null;
 
       final XmlDocument doc = XmlDocument.parse(r.body);
       for (final XmlElement e in doc.findAllElements('entry')) {
         final String title = e.getElement('title')?.innerText.trim() ?? '';
         final String id = e.getElement('id')?.innerText.trim() ?? '';
-        final String summary =
-            e.getElement('summary')?.innerText.trim() ?? '';
+        final String summary = e.getElement('summary')?.innerText.trim() ?? '';
         if (title.isEmpty || id.isEmpty) continue;
         if (avoidTitles.any(
           (String t) => t.toLowerCase() == title.toLowerCase(),
@@ -124,11 +144,7 @@ class WebArticleService {
         if (full != null && _words(full.text) >= 220) return full;
 
         if (_words(summary) >= 60) {
-          return WebArticle(
-            title: title,
-            text: _wrap(summary),
-            source: id,
-          );
+          return WebArticle(title: title, text: _wrap(summary), source: id);
         }
       }
     } catch (_) {}
@@ -145,9 +161,9 @@ class WebArticleService {
         'https://www.bing.com/search?q=${Uri.encodeQueryComponent(query)}'
         '&setlang=en&cc=us',
       );
-      final http.Response r =
-          await http.get(uri, headers: <String, String>{'User-Agent': _ua})
-              .timeout(const Duration(seconds: 15));
+      final http.Response r = await http
+          .get(uri, headers: <String, String>{'User-Agent': _ua})
+          .timeout(const Duration(seconds: 15));
       if (r.statusCode == 200) {
         final RegExp re = RegExp(
           r'<h2[^>]*>\s*<a[^>]+href="(https?://[^"]+)"',
@@ -156,6 +172,7 @@ class WebArticleService {
         for (final RegExpMatch m in re.allMatches(r.body)) {
           final String u = m.group(1) ?? '';
           if (u.contains('bing.com') || u.contains('microsoft.com')) continue;
+          if (_isJunkPage('', u)) continue;
           if (!links.contains(u)) links.add(u);
           if (links.length >= 8) break;
         }
@@ -177,17 +194,36 @@ class WebArticleService {
 
   static Future<WebArticle?> _fromUrl(String url, {String? title}) async {
     try {
-      final http.Response r =
-          await http.get(Uri.parse(url), headers: <String, String>{
-        'User-Agent': _ua,
-        'Accept-Language': 'en-US,en;q=0.9',
-      }).timeout(const Duration(seconds: 15));
+      final http.Response r = await http
+          .get(
+            Uri.parse(url),
+            headers: <String, String>{
+              'User-Agent': _ua,
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
       if (r.statusCode != 200) return null;
       final String html = r.body;
       final String text = _extract(html);
       if (text.isEmpty) return null;
+      final String pageTitle = (title == null || title.isEmpty)
+          ? _pageTitle(html)
+          : title;
+      if (_isJunkPage(pageTitle, url)) return null;
+
+      // 至少三段、句子像正常文章，避免抓到例句堆砌的页面
+      if (text.split('\n\n').length < 3) return null;
+      final List<String> sentences = text
+          .split(RegExp(r'(?<=[.!?])\s+'))
+          .where((String s) => s.trim().isNotEmpty)
+          .toList();
+      if (sentences.isEmpty) return null;
+      final double avg = _words(text) / sentences.length;
+      if (avg < 7) return null;
+
       return WebArticle(
-        title: (title == null || title.isEmpty) ? _pageTitle(html) : title,
+        title: pageTitle,
         text: _wrap(_limit(text, 4000)),
         source: url,
       );
@@ -199,15 +235,22 @@ class WebArticleService {
   static String _extract(String html) {
     String s = html
         .replaceAll(
-            RegExp(r'<script[\s\S]*?</script>', caseSensitive: false), ' ')
+          RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+          ' ',
+        )
         .replaceAll(
-            RegExp(r'<style[\s\S]*?</style>', caseSensitive: false), ' ')
+          RegExp(r'<style[\s\S]*?</style>', caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(RegExp(r'<nav[\s\S]*?</nav>', caseSensitive: false), ' ')
         .replaceAll(
-            RegExp(r'<nav[\s\S]*?</nav>', caseSensitive: false), ' ')
+          RegExp(r'<footer[\s\S]*?</footer>', caseSensitive: false),
+          ' ',
+        )
         .replaceAll(
-            RegExp(r'<footer[\s\S]*?</footer>', caseSensitive: false), ' ')
-        .replaceAll(
-            RegExp(r'<header[\s\S]*?</header>', caseSensitive: false), ' ');
+          RegExp(r'<header[\s\S]*?</header>', caseSensitive: false),
+          ' ',
+        );
 
     final List<String> paras = <String>[];
     for (final RegExpMatch m in RegExp(
@@ -217,9 +260,10 @@ class WebArticleService {
       final String t = _plain(m.group(1) ?? '');
       if (t.length < 70) continue;
       if (_englishRatio(t) < 0.55) continue;
-      if (RegExp(r'cookie|subscribe|sign up|privacy policy',
-              caseSensitive: false)
-          .hasMatch(t)) {
+      if (RegExp(
+        r'cookie|subscribe|sign up|privacy policy',
+        caseSensitive: false,
+      ).hasMatch(t)) {
         continue;
       }
       if (!paras.contains(t)) paras.add(t);
@@ -297,8 +341,7 @@ class WebArticleService {
         .toList();
     final List<String> paras = <String>[];
     for (int i = 0; i < sentences.length; i += 3) {
-      final int end =
-          i + 3 > sentences.length ? sentences.length : i + 3;
+      final int end = i + 3 > sentences.length ? sentences.length : i + 3;
       paras.add(sentences.sublist(i, end).join(' '));
     }
     return paras.join('\n\n');
