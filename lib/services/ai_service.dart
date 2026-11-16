@@ -358,6 +358,129 @@ class AiService {
     return _parseEntryList(raw, words);
   }
 
+  /// 作文补词专用：只要一个短释义。
+  /// 比 lookupWords 少要音标/例句/词根，输出小很多，一批能塞 40 个。
+  static const int glossBatchSize = 40;
+
+  static Future<Map<String, String>> lookupGlosses(
+    AiConfig cfg,
+    List<String> words,
+  ) async {
+    if (words.isEmpty) return <String, String>{};
+    final String prompt = '给下面每个英文单词一条简短中文释义。\n'
+        '严格输出 JSON 数组，每个元素形如：{"en":"单词原文","zh":"中文，12 字以内"}\n'
+        '不要音标、不要例句、不要词根、不要解释。单词列表：\n'
+        '${words.join('\n')}';
+
+    final String raw = await _guard<String>(() {
+      return run(
+        cfg,
+        (AiConfig c) => _complete(
+          c,
+          '你是一部紧凑的英汉词典，只给最短的中文释义。',
+          prompt,
+          maxTokens: 1600,
+        ),
+      );
+    });
+
+    String text = raw.trim();
+    if (text.startsWith('```')) {
+      text = text.replaceAll('```json', '').replaceAll('```', '').trim();
+    }
+    final int start = text.indexOf('[');
+    final int end = text.lastIndexOf(']');
+    if (start >= 0 && end > start) text = text.substring(start, end + 1);
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } catch (_) {
+      return <String, String>{};
+    }
+    if (decoded is! List) return <String, String>{};
+
+    final Map<String, String> out = <String, String>{};
+    for (final Object? item in decoded) {
+      if (item is! Map) continue;
+      final String en = (item['en'] ?? '').toString().trim().toLowerCase();
+      final String zh = (item['zh'] ?? '').toString().trim();
+      if (en.isNotEmpty && zh.isNotEmpty) out[en] = zh;
+    }
+    return out;
+  }
+
+  /// 错词复盘：输入已经拼好的错词清单，返回结构化 JSON 文本
+  static Future<String> digestWrongWords(
+    AiConfig cfg,
+    String payload,
+  ) async {
+    final String prompt = '下面是一批需要复盘的英语错词和短语，'
+        '有的来自作文标记（带原句），有的来自做题（带错题次数）。\n'
+        '请整理成学习复盘，严格输出 JSON，不要 markdown，不要解释：\n'
+        '{"groups":[{"title":"组名","words":["词1"],"tip":"一句话"}],'
+        '"items":[{"word":"词或短语","meaning":"正确意思","memory":"一句记忆方法",'
+        '"group":"所属组名"}],'
+        '"path":["第一步","第二步","第三步"]}\n'
+        '要求：items 覆盖每一个词，memory 控制在 30 字内；'
+        '分组不超过 4 组；path 三步。\n\n$payload';
+
+    return _guard<String>(() {
+      return run(
+        cfg,
+        (AiConfig c) => _complete(
+          c,
+          '你是一名英语错词教练，擅长归类、纠错和记忆法，严格输出 JSON。',
+          prompt,
+          maxTokens: 3000,
+        ),
+      );
+    });
+  }
+
+  /// 逐句翻译一段。返回 [{en, zh}]，解析失败返回空列表。
+  static Future<List<Map<String, String>>> translateSentences(
+    AiConfig cfg,
+    String text,
+  ) async {
+    final String prompt = '把下面这段英语逐句翻译成中文。\n'
+        '严格输出 JSON 数组，不要 markdown，不要解释：\n'
+        '[{"en":"原句","zh":"中文译文"}]\n'
+        '一句一条，按原文顺序，不要合并句子。\n\n$text';
+
+    final String raw = await _guard<String>(() {
+      return run(
+        cfg,
+        (AiConfig c) => _complete(
+          c,
+          '你是一名英语翻译，译文自然准确，严格输出 JSON。',
+          prompt,
+          maxTokens: 2400,
+        ),
+      );
+    });
+
+    String s = raw.trim();
+    s = s.replaceAll(RegExp(r'^```[a-zA-Z]*'), '').replaceAll('```', '');
+    final int start = s.indexOf('[');
+    final int end = s.lastIndexOf(']');
+    if (start < 0 || end <= start) return <Map<String, String>>[];
+    try {
+      final Object? data = jsonDecode(s.substring(start, end + 1));
+      if (data is! List) return <Map<String, String>>[];
+      final List<Map<String, String>> out = <Map<String, String>>[];
+      for (final Object? item in data) {
+        if (item is! Map) continue;
+        final String en = (item['en'] ?? '').toString().trim();
+        final String zh = (item['zh'] ?? '').toString().trim();
+        if (en.isNotEmpty) out.add(<String, String>{'en': en, 'zh': zh});
+      }
+      return out;
+    } catch (_) {
+      return <Map<String, String>>[];
+    }
+  }
+
   static List<WordEntry> _parseEntryList(String raw, List<String> words) {
     String text = raw.trim();
     if (text.startsWith('```')) {
@@ -554,9 +677,9 @@ class AiService {
     List<ChatMessage> history, {
     String systemPrompt = '',
   }) async {
-    // 只带最近 12 条，历史太长既慢又容易超限
-    final List<ChatMessage> recent = history.length > 12
-        ? history.sublist(history.length - 12)
+    // 只带最近 20 条：长对话也要留够上下文，但别把整段历史都塞进去
+    final List<ChatMessage> recent = history.length > 20
+        ? history.sublist(history.length - 20)
         : history;
 
     final String text = await _guard<String>(() {

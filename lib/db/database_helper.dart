@@ -76,7 +76,12 @@ class DatabaseHelper {
   /// v9：新增 chat_sessions（多段对话），chat_messages 加 session_id。
   /// v10：新增 essay_translations（逐句译文落库）。
   /// v11：新增 word_cards（词根词缀 / 搭配 / 例句，AI 生成后缓存）。
-  static const int _dbVersion = 11;
+  /// v12：新增 sections（分区可自定义名称和数量）。
+  /// v13：新增 word_glosses（作文里补过的中文，缓存下来不重复请求）。
+  /// v14：新增 chat_graphs（错词复盘生成的记忆图谱，挂在消息下面）。
+  /// v15：对话分类型 + digest_records（后台提交的错词原文）。
+  /// v16：digest_qa（复盘悬浮窗的追问，挂在某条复盘结果下）。
+  static const int _dbVersion = 16;
 
   static const String tableWords = 'words';
   static const String tableReviews = 'reviews';
@@ -89,6 +94,10 @@ class DatabaseHelper {
   static const String tableEssayMarks = 'essay_marks';
   static const String tableEssayTranslations = 'essay_translations';
   static const String tableWordCards = 'word_cards';
+  static const String tableSections = 'sections';
+  static const String tableWordGlosses = 'word_glosses';
+  static const String tableChatGraphs = 'chat_graphs';
+  static const String tableDigestRecords = 'digest_records';
 
   /// 需要上云的四张表。settings 不在里面——里面有 API Key，绝不同步。
   static const List<String> syncTables = <String>[
@@ -239,6 +248,7 @@ class DatabaseHelper {
       CREATE TABLE chat_sessions (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         title      TEXT    NOT NULL,
+        kind       TEXT    NOT NULL DEFAULT 'chat',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -301,6 +311,58 @@ class DatabaseHelper {
         collocations TEXT NOT NULL DEFAULT '',
         examples     TEXT NOT NULL DEFAULT '',
         created_at   INTEGER NOT NULL
+      )
+    ''');
+
+    // 分区：可以自己加、改名、删
+    await db.execute('''
+      CREATE TABLE sections (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        sort       INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    await _seedSections(db);
+
+    // 作文补过的中文释义，按单词缓存
+    await db.execute('''
+      CREATE TABLE word_glosses (
+        en         TEXT PRIMARY KEY,
+        zh         TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    // 错词复盘的记忆图谱，挂在某条 AI 回复下面
+    await db.execute('''
+      CREATE TABLE chat_graphs (
+        message_id INTEGER PRIMARY KEY,
+        json       TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    // 后台提交给 AI 的错词原文，抽屉「记录」里能翻到
+    await db.execute('''
+      CREATE TABLE digest_records (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        payload    TEXT NOT NULL,
+        item_count INTEGER NOT NULL,
+        message_id INTEGER,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    // 复盘悬浮窗的追问，按复盘结果（message_id）归档
+    await db.execute('''
+      CREATE TABLE digest_qa (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        role       TEXT NOT NULL,
+        content    TEXT NOT NULL,
+        created_at INTEGER NOT NULL
       )
     ''');
   }
@@ -474,6 +536,83 @@ class DatabaseHelper {
           created_at   INTEGER NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 12) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sections (
+          id         TEXT PRIMARY KEY,
+          name       TEXT NOT NULL,
+          sort       INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+      await _seedSections(db);
+    }
+    if (oldVersion < 13) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS word_glosses (
+          en         TEXT PRIMARY KEY,
+          zh         TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 14) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS chat_graphs (
+          message_id INTEGER PRIMARY KEY,
+          json       TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 15) {
+      await db.execute(
+        "ALTER TABLE chat_sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'",
+      );
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS digest_records (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER NOT NULL,
+          payload    TEXT NOT NULL,
+          item_count INTEGER NOT NULL,
+          message_id INTEGER,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 16) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS digest_qa (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          message_id INTEGER NOT NULL,
+          role       TEXT NOT NULL,
+          content    TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+    }
+  }
+
+  /// 第一次建库 / 升级到 v12 时，把原来四个固定的分区写进表里
+  Future<void> _seedSections(Database db) async {
+    final List<Map<String, Object?>> rows =
+        await db.rawQuery('SELECT COUNT(*) AS n FROM $tableSections');
+    if (((rows.first['n'] as int?) ?? 0) > 0) return;
+    const List<List<String>> defaults = <List<String>>[
+      <String>['CET4', '英语四级'],
+      <String>['CET6', '英语六级'],
+      <String>['UPGRADE', '专升本英语'],
+      <String>['KAOYAN', '考研英语'],
+    ];
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    for (int i = 0; i < defaults.length; i++) {
+      await db.insert(tableSections, <String, Object?>{
+        'id': defaults[i][0],
+        'name': defaults[i][1],
+        'sort': i,
+        'created_at': now,
+      });
     }
   }
 
@@ -873,24 +1012,90 @@ class DatabaseHelper {
 
   // ---------------- AI 对话历史 ----------------
 
-  /// 会话列表，最近更新的在前
-  Future<List<ChatSession>> getChatSessions() async {
+  /// 会话列表，最近更新的在前。kind 传 'chat' 只看普通对话。
+  Future<List<ChatSession>> getChatSessions({String? kind}) async {
     final Database db = await database;
+    String? where;
+    List<Object?>? args;
+    if (kind == 'chat') {
+      // 早期的复盘会话没有 kind，按标题一并挡掉，避免混进普通历史
+      where = "kind = 'chat' AND title NOT LIKE '错词复盘%'";
+    } else if (kind != null) {
+      where = 'kind = ?';
+      args = <Object?>[kind];
+    }
     final List<Map<String, dynamic>> rows = await db.query(
       tableChatSessions,
+      where: where,
+      whereArgs: args,
       orderBy: 'updated_at DESC, id DESC',
     );
     return rows.map(ChatSession.fromMap).toList();
   }
 
-  Future<int> createChatSession(String title) async {
+  Future<int> createChatSession(String title, {String kind = 'chat'}) async {
     final Database db = await database;
     final int now = DateTime.now().millisecondsSinceEpoch;
     return db.insert(tableChatSessions, <String, Object?>{
       'title': title.trim().isEmpty ? '新对话' : title.trim(),
+      'kind': kind,
       'created_at': now,
       'updated_at': now,
     });
+  }
+
+  /// 固定的错词复盘会话，没有就建一条
+  Future<ChatSession?> getDigestSession() async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      tableChatSessions,
+      where: "kind = 'digest'",
+      orderBy: 'id ASC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return ChatSession.fromMap(rows.first);
+  }
+
+  Future<int> ensureDigestSession() async {
+    final ChatSession? s = await getDigestSession();
+    if (s != null) return s.id;
+    return createChatSession('错词复盘', kind: 'digest');
+  }
+
+  Future<int> addDigestRecord({
+    required int sessionId,
+    required String payload,
+    required int itemCount,
+  }) async {
+    final Database db = await database;
+    return db.insert(tableDigestRecords, <String, Object?>{
+      'session_id': sessionId,
+      'payload': payload,
+      'item_count': itemCount,
+      'message_id': null,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<void> setDigestRecordMessage(int recordId, int messageId) async {
+    final Database db = await database;
+    await db.update(
+      tableDigestRecords,
+      <String, Object?>{'message_id': messageId},
+      where: 'id = ?',
+      whereArgs: <Object?>[recordId],
+    );
+  }
+
+  Future<List<DigestRecord>> getDigestRecords({int limit = 100}) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      tableDigestRecords,
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return rows.map(DigestRecord.fromMap).toList();
   }
 
   Future<void> touchChatSession(int id) async {
@@ -966,6 +1171,33 @@ class DatabaseHelper {
       'updated_at': DateTime.now().millisecondsSinceEpoch,
       'dirty': 1,
     });
+  }
+
+  Future<void> saveChatGraph(int messageId, String json) async {
+    final Database db = await database;
+    await db.insert(
+      tableChatGraphs,
+      <String, Object?>{
+        'message_id': messageId,
+        'json': json,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Map<int, String>> getChatGraphsForSession(int sessionId) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.rawQuery(
+      'SELECT g.message_id, g.json FROM $tableChatGraphs g '
+      'JOIN $tableChat m ON m.id = g.message_id '
+      'WHERE m.session_id = ?',
+      <Object?>[sessionId],
+    );
+    return <int, String>{
+      for (final Map<String, dynamic> r in rows)
+        (r['message_id'] as int): (r['json'] as String),
+    };
   }
 
   /// 删掉指定的一句（用户长按选的那条）
@@ -1627,6 +1859,114 @@ class DatabaseHelper {
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // ---------------- 作文释义缓存 ----------------
+
+  Future<Map<String, String>> getGlosses(List<String> words) async {
+    if (words.isEmpty) return <String, String>{};
+    final Database db = await database;
+    final String marks = List<String>.filled(words.length, '?').join(',');
+    final List<Map<String, dynamic>> rows = await db.rawQuery(
+      'SELECT en, zh FROM $tableWordGlosses WHERE en IN ($marks)',
+      words,
+    );
+    return <String, String>{
+      for (final Map<String, dynamic> r in rows)
+        (r['en'] as String): (r['zh'] as String?) ?? '',
+    };
+  }
+
+  Future<void> saveGlosses(Map<String, String> glosses) async {
+    if (glosses.isEmpty) return;
+    final Database db = await database;
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    await db.transaction((Transaction txn) async {
+      for (final MapEntry<String, String> e in glosses.entries) {
+        if (e.value.trim().isEmpty) continue;
+        await txn.insert(
+          tableWordGlosses,
+          <String, Object?>{
+            'en': e.key,
+            'zh': e.value.trim(),
+            'updated_at': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
+  // ---------------- 分区 ----------------
+
+  Future<List<Map<String, Object?>>> getSections() async {
+    final Database db = await database;
+    return db.query(tableSections, orderBy: 'sort ASC, created_at ASC');
+  }
+
+  Future<void> insertSection({
+    required String id,
+    required String name,
+    required int sort,
+  }) async {
+    final Database db = await database;
+    await db.insert(tableSections, <String, Object?>{
+      'id': id,
+      'name': name,
+      'sort': sort,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<void> renameSection(String id, String name) async {
+    final Database db = await database;
+    await db.update(
+      tableSections,
+      <String, Object?>{'name': name},
+      where: 'id = ?',
+      whereArgs: <Object?>[id],
+    );
+  }
+
+  Future<void> deleteSection(String id) async {
+    final Database db = await database;
+    await db.delete(tableSections, where: 'id = ?', whereArgs: <Object?>[id]);
+  }
+
+  Future<List<ChatMessage>> getDigestQa(int messageId) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      'digest_qa',
+      where: 'message_id = ?',
+      whereArgs: <Object?>[messageId],
+      orderBy: 'id ASC',
+    );
+    return rows
+        .map(
+          (Map<String, dynamic> r) => ChatMessage(
+            id: r['id'] as int?,
+            role: (r['role'] as String?) ?? 'user',
+            content: (r['content'] as String?) ?? '',
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              (r['created_at'] as int?) ?? 0,
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> addDigestQa(
+    int messageId,
+    String role,
+    String content,
+  ) async {
+    final Database db = await database;
+    await db.insert('digest_qa', <String, Object?>{
+      'message_id': messageId,
+      'role': role,
+      'content': content,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   /// 调试用：删库重建。改了建表 SQL 之后调它一次

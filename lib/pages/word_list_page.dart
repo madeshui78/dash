@@ -18,6 +18,7 @@ import '../services/study_settings.dart';
 import '../services/track_store.dart';
 import '../services/tts_service.dart';
 import '../theme/module_palette.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/empty_view.dart';
 import '../widgets/home_cards.dart';
 import '../widgets/smooth_route.dart';
@@ -282,17 +283,13 @@ class _WordListPageState extends State<WordListPage> {
     _autoDrawnAt[track] = drawableNow;
     if (!mounted) return;
     _reload();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已清空今天这批')),
-    );
+    AppToast.show(context, '已清空今天这批');
   }
 
   /// 开快刷自测：一题一词、立刻判对错、随时能停
   Future<void> _openQuiz(List<Word> pool, String title) async {
     if (pool.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('这批里没有能出题的词')),
-      );
+      AppToast.show(context, '这批里没有能出题的词');
       return;
     }
     final Object? changed = await Navigator.of(context).push<Object?>(
@@ -389,11 +386,9 @@ class _WordListPageState extends State<WordListPage> {
       _selected.clear();
     });
     _reload();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已移动 $moved 个词到「${TrackStore.labelOf(target)}」'),
-        duration: const Duration(seconds: 4),
-      ),
+    AppToast.show(
+      context,
+      '已移动 $moved 个词到「${TrackStore.labelOf(target)}」',
     );
   }
 
@@ -401,19 +396,14 @@ class _WordListPageState extends State<WordListPage> {
     await DatabaseHelper.instance.deleteWord(word.id!);
     if (!mounted) return;
     _reload();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('已删除 ${word.en}')));
+    AppToast.show(context, '已删除 ${word.en}');
   }
 
   Future<void> _move(Word word, String track) async {
     await DatabaseHelper.instance.updateWord(word.copyWith(track: track));
     if (!mounted) return;
     _reload();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('「${word.en}」已移到「${TrackStore.labelOf(track)}」'),
-      ),
-    );
+    AppToast.show(context, '「${word.en}」已移到「${TrackStore.labelOf(track)}」');
   }
 
   @override

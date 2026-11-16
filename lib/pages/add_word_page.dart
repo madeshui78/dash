@@ -6,6 +6,7 @@ import '../db/database_helper.dart';
 import '../models/word.dart';
 import '../services/ai_service.dart';
 import '../services/track_store.dart';
+import '../widgets/app_toast.dart';
 import 'import_page.dart';
 
 class AddWordPage extends StatefulWidget {
@@ -69,14 +70,9 @@ class _AddWordPageState extends State<AddWordPage> {
     if (!mounted) return;
     if (hitHere.isNotEmpty) {
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '「${_en.text.trim()}」已经在「${TrackStore.labelOf(
-              TrackStore.current.value,
-            )}」里了，不用重复添加',
-          ),
-        ),
+      AppToast.show(
+        context,
+        '「${_en.text.trim()}」已经在「${TrackStore.labelOf(TrackStore.current.value)}」里了',
       );
       return;
     }
@@ -133,18 +129,14 @@ class _AddWordPageState extends State<AddWordPage> {
       _phonetic.clear();
       _example.clear();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已保存 ${word.en}')),
-      );
+      AppToast.show(context, '已保存 ${word.en}');
       // 收起键盘，光标回到英文输入框
       FocusScope.of(context).unfocus();
       // 立刻通知单词页重新拉数据（并自动把新词补进今天这批）
       widget.refreshTick?.value++;
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存失败：$e')),
-      );
+      AppToast.show(context, '保存失败：$e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -191,9 +183,7 @@ class _AddWordPageState extends State<AddWordPage> {
   Future<void> _aiFill() async {
     final String word = _en.text.trim();
     if (word.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先输入英文单词，再点 AI 补全')),
-      );
+      AppToast.show(context, '先输入英文单词，再点 AI 补全');
       return;
     }
 
@@ -209,17 +199,10 @@ class _AddWordPageState extends State<AddWordPage> {
         if (entry['zh']!.isNotEmpty) _zh.text = entry['zh']!;
         if (entry['example']!.isNotEmpty) _example.text = entry['example']!;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已填充「$word」，请核对后保存')),
-      );
+      AppToast.show(context, '已填充「$word」，请核对后保存');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('AI 补全失败：$e'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      AppToast.show(context, 'AI 补全失败：$e', duration: const Duration(seconds: 3));
     } finally {
       if (mounted) setState(() => _aiLoading = false);
     }

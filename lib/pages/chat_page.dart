@@ -2,6 +2,7 @@
 // 整段对话都存在数据库的 chat_messages 表里，杀掉 App 再打开还在；
 // 长按任意一句可以单独复制或删除。
 
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,10 +10,20 @@ import 'package:flutter/services.dart';
 
 import '../db/database_helper.dart';
 import '../models/chat_session.dart';
+import '../models/digest_result.dart';
+import '../models/essay.dart';
+import '../models/memory_graph.dart';
+import '../models/word.dart';
 import '../services/ai_service.dart';
+import '../services/chat_focus.dart';
+import '../services/digest_queue.dart';
 import '../services/track_store.dart';
 import '../theme/module_palette.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/digest_answer_card.dart';
+import '../widgets/digest_view.dart';
 import '../widgets/fx.dart';
+import '../widgets/memory_graph_card.dart';
 import 'settings_page.dart';
 
 class ChatPage extends StatefulWidget {
@@ -40,6 +51,19 @@ class _ChatPageState extends State<ChatPage> {
   bool _loadingHistory = true;
   String? _error;
 
+  /// 0 普通对话，1 错词复盘
+  int _mode = 0;
+
+  /// 每条 AI 回复下面挂的记忆图谱
+  final Map<int, MemoryGraph> _graphs = <int, MemoryGraph>{};
+
+  /// 固定复盘会话：解析后的结构化结果 + 每行的定位 key
+  bool _isDigest = false;
+  final Map<int, DigestResult> _digestResults = <int, DigestResult>{};
+  final Map<String, GlobalKey> _digestKeys = <String, GlobalKey>{};
+  final List<_RailEntry> _rail = <_RailEntry>[];
+  bool _digestRunning = false;
+
   /// 每次发送时按当前考试赛道拼，切了赛道回答的侧重点也跟着变
   String get _systemPrompt {
     final String exam = TrackStore.labelOf(TrackStore.current.value);
@@ -62,19 +86,19 @@ class _ChatPageState extends State<ChatPage> {
   /// 启动：有历史就打开最近一段，没有就停在空白新对话
   Future<void> _loadHistory() async {
     final List<ChatSession> list =
-        await DatabaseHelper.instance.getChatSessions();
+        await DatabaseHelper.instance.getChatSessions(kind: 'chat');
     if (!mounted) return;
     setState(() => _sessions = list);
     if (list.isEmpty) {
       setState(() => _loadingHistory = false);
-      return;
+    } else {
+      await _openSession(list.first.id);
     }
-    await _openSession(list.first.id);
   }
 
   Future<void> _refreshSessions() async {
     final List<ChatSession> list =
-        await DatabaseHelper.instance.getChatSessions();
+        await DatabaseHelper.instance.getChatSessions(kind: 'chat');
     if (!mounted) return;
     setState(() => _sessions = list);
   }
@@ -82,17 +106,59 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _openSession(int id) async {
     final List<ChatMessage> history =
         await DatabaseHelper.instance.getChatMessages(sessionId: id);
+    final Map<int, String> graphRows =
+        await DatabaseHelper.instance.getChatGraphsForSession(id);
     if (!mounted) return;
     String title = '对话';
+    bool digest = false;
     for (final ChatSession s in _sessions) {
-      if (s.id == id) title = s.title;
+      if (s.id == id) {
+        title = s.title;
+        digest = s.isDigest;
+      }
     }
+
+    // 解析结构化的复盘消息，顺便建好右侧目录的定位 key
+    final Map<int, DigestResult> results = <int, DigestResult>{};
+    final Map<String, GlobalKey> keys = <String, GlobalKey>{};
+    final List<_RailEntry> rail = <_RailEntry>[];
+    if (digest) {
+      for (final ChatMessage m in history) {
+        final int? mid = m.id;
+        if (mid == null || !m.content.startsWith(_digestPrefix)) continue;
+        final DigestResult? r =
+            DigestResult.tryParse(m.content.substring(_digestPrefix.length));
+        if (r == null) continue;
+        results[mid] = r;
+        for (int i = 0; i < r.items.length; i++) {
+          final String k = '$mid-$i';
+          keys[k] = GlobalKey();
+          rail.add(_RailEntry(word: r.items[i].word, keyId: k));
+        }
+      }
+    }
+
     setState(() {
       _sessionId = id;
       _title = title;
+      _isDigest = digest;
       _messages
         ..clear()
         ..addAll(history);
+      _graphs.clear();
+      graphRows.forEach((int mid, String json) {
+        final MemoryGraph? g = MemoryGraph.tryParse(json);
+        if (g != null) _graphs[mid] = g;
+      });
+      _digestResults
+        ..clear()
+        ..addAll(results);
+      _digestKeys
+        ..clear()
+        ..addAll(keys);
+      _rail
+        ..clear()
+        ..addAll(rail);
       _loadingHistory = false;
       _error = null;
     });
@@ -149,23 +215,41 @@ class _ChatPageState extends State<ChatPage> {
 
     final AiConfig cfg = await AiService.loadConfig();
     try {
-      final String reply =
-          await AiService.chat(cfg, _messages, systemPrompt: _systemPrompt);
+      final String reply = await AiService.chat(
+        cfg,
+        _messages,
+        systemPrompt: _systemPrompt,
+      );
       if (!mounted) return;
+
+      // 复盘回复末尾带一段 GRAPH_JSON，拆出来单独存，正文里不显示
+      String visible = reply;
+      String? graphJson;
+      final int gi = reply.indexOf('GRAPH_JSON:');
+      if (gi >= 0) {
+        visible = reply.substring(0, gi).trim();
+        graphJson = reply.substring(gi + 'GRAPH_JSON:'.length).trim();
+      }
+
       final int replyId = await DatabaseHelper.instance.addChatMessage(
-        ChatMessage(role: 'assistant', content: reply),
+        ChatMessage(role: 'assistant', content: visible),
         sessionId: sid,
       );
       if (!mounted) return;
+      final MemoryGraph? graph = MemoryGraph.tryParse(graphJson);
+      if (graph != null && graphJson != null) {
+        await DatabaseHelper.instance.saveChatGraph(replyId, graphJson);
+      }
       setState(() {
         _messages.add(
           ChatMessage(
             id: replyId,
             role: 'assistant',
-            content: reply,
+            content: visible,
             createdAt: DateTime.now(),
           ),
         );
+        if (graph != null) _graphs[replyId] = graph;
         _busy = false;
       });
       _scrollToEnd();
@@ -176,6 +260,127 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _busy = false;
         _error = _clean(e.toString());
+      });
+      _scrollToEnd();
+    }
+  }
+
+  /// 结构化复盘消息的前缀，正文里存的是它 + AI 返回的 JSON
+  static const String _digestPrefix = 'DIGEST_JSON:';
+
+  /// 手动复盘：不看时间，把现在的错词都过一遍
+  Future<void> _manualDigest() async {
+    if (_busy || _digestRunning) return;
+    final List<String> items = await _collectPending(all: true);
+    if (!mounted) return;
+    if (items.isEmpty) {
+      AppToast.show(context, '还没有记录过错词');
+      return;
+    }
+    await _runDigestTask(
+      DigestTask(
+        payload: items.map((String e) => '· $e').join('\n'),
+        words: <String>[],
+        count: items.length,
+      ),
+    );
+  }
+
+  /// 收集错词。all=true 时忽略「上次复盘时间」，把当前所有错词都拿进来。
+  Future<List<String>> _collectPending({bool all = false}) async {
+    final DatabaseHelper db = DatabaseHelper.instance;
+    final int last = all
+        ? 0
+        : (int.tryParse(await db.getSetting('last_digest_at') ?? '') ?? 0);
+    final List<String> out = <String>[];
+    final Set<String> seen = <String>{};
+
+    final List<EssayMarkHit> marks =
+        await db.getEssayMarkHits(track: TrackStore.current.value);
+    for (final EssayMarkHit h in marks) {
+      if (h.mark.createdAt <= last) continue;
+      final String w = h.mark.word.trim();
+      if (w.isEmpty || !seen.add(w.toLowerCase())) continue;
+      final String sent = h.mark.sentence.trim();
+      out.add(
+        sent.isEmpty ? w : '$w  ——  原句：$sent',
+      );
+      // 作文标记最多取 10 条，剩下名额留给做题错词
+      if (out.length >= 10) break;
+    }
+
+    final List<Word> words =
+        await db.getWrongWords(track: TrackStore.current.value);
+    for (final Word w in words) {
+      final int t = w.lastReview?.millisecondsSinceEpoch ?? 0;
+      if (last > 0 && t <= last) continue;
+      if (!seen.add(w.en.toLowerCase())) continue;
+      out.add('${w.en}  ${w.zh}${w.wrong > 0 ? '（错 ${w.wrong} 次）' : ''}');
+      if (out.length >= 20) break;
+    }
+    return out;
+  }
+
+  /// 后台跑一次复盘：固定会话、不插用户气泡、只落一条结果
+  Future<void> _runDigestTask(DigestTask task) async {
+    if (_digestRunning) return;
+    setState(() {
+      _digestRunning = true;
+      _error = null;
+    });
+
+    try {
+      final DatabaseHelper db = DatabaseHelper.instance;
+      final int sid = await db.ensureDigestSession();
+      await _refreshSessions();
+      if (!mounted) return;
+      await _openSession(sid);
+
+      final int recId = await db.addDigestRecord(
+        sessionId: sid,
+        payload: task.payload,
+        itemCount: task.count,
+      );
+
+      final AiConfig cfg = await AiService.loadConfig();
+      final String raw = await AiService.digestWrongWords(cfg, task.payload);
+      final DigestResult? result = DigestResult.tryParse(raw);
+      if (result == null) throw Exception('复盘结果解析失败');
+
+      final String content = '$_digestPrefix$raw';
+      final int mid = await db.addChatMessage(
+        ChatMessage(role: 'assistant', content: content),
+        sessionId: sid,
+      );
+      await db.setDigestRecordMessage(recId, mid);
+      await db.touchChatSession(sid);
+
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            id: mid,
+            role: 'assistant',
+            content: content,
+            createdAt: DateTime.now(),
+          ),
+        );
+        _digestResults[mid] = result;
+        for (int i = 0; i < result.items.length; i++) {
+          final String k = '$mid-$i';
+          _digestKeys[k] = GlobalKey();
+          _rail.add(_RailEntry(word: result.items[i].word, keyId: k));
+        }
+        _digestRunning = false;
+      });
+      _scrollToEnd();
+      await _refreshSessions();
+    } catch (e, st) {
+      debugPrint('digest failed: $e\n$st');
+      if (!mounted) return;
+      setState(() {
+        _digestRunning = false;
+        _error = '复盘失败：${_clean(e.toString())}';
       });
       _scrollToEnd();
     }
@@ -220,8 +425,7 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _messages.removeWhere((ChatMessage x) => x.id == m.id);
     });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('已删除这一句')));
+    AppToast.show(context, '已删除这一句');
   }
 
   /// 长按一条消息：复制 / 删除
@@ -260,24 +464,100 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    ChatFocus.mode.addListener(_onModeRequest);
     _loadHistory();
   }
 
   @override
   void dispose() {
+    ChatFocus.mode.removeListener(_onModeRequest);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _onModeRequest() {
+    final int m = ChatFocus.mode.value;
+    if (m < 0 || !mounted) return;
+    setState(() => _mode = m);
+    ChatFocus.mode.value = -1;
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        _buildSessionBar(),
-        Expanded(child: _buildBody()),
-        _buildInputBar(),
+        _buildModeBar(),
+        Expanded(
+          child: IndexedStack(
+            index: _mode,
+            children: <Widget>[
+              _buildBody(),
+              const DigestView(),
+            ],
+          ),
+        ),
+        if (_mode == 0) _buildInputBar(),
       ],
+    );
+  }
+
+  /// 顶部：普通对话 / 错词复盘两个固定入口
+  Widget _buildModeBar() {
+    final ModulePalette p = ModulePalette.of(context);
+    Widget tab(String label, int value) {
+      final bool on = _mode == value;
+      return GestureDetector(
+        onTap: () => setState(() => _mode = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: on ? p.blue.withValues(alpha: 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+              color: on ? p.blue : p.muted,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: p.canvas,
+      child: Row(
+        children: <Widget>[
+          tab('对话', 0),
+          const SizedBox(width: 2),
+          tab('错词复盘', 1),
+          const Spacer(),
+          if (_mode == 0) ...<Widget>[
+            FxIconButton(
+              icon: Icons.segment,
+              fx: TapFx.dots,
+              tooltip: '历史对话',
+              size: 19,
+              color: p.chat,
+              onPressed: _openSessions,
+            ),
+            FxIconButton(
+              icon: Icons.add_comment_outlined,
+              fx: TapFx.pop,
+              tooltip: '新对话',
+              size: 19,
+              color: p.blue,
+              onPressed: _newChat,
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -446,11 +726,31 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildBody() {
+    final ModulePalette p = ModulePalette.of(context);
     // 历史还没读回来时先转个圈，不然会闪一下空态
     if (_loadingHistory) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_messages.isEmpty) {
+    if (_messages.isEmpty && !_digestRunning) {
+      if (_isDigest) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.psychology_outlined, size: 34, color: p.muted),
+                const SizedBox(height: 12),
+                Text(
+                  _error ?? '还没有复盘记录\n去错词本点「提交今日错词」',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, height: 1.6, color: p.muted),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
         children: <Widget>[
@@ -476,6 +776,8 @@ class _ChatPageState extends State<ChatPage> {
       );
     }
 
+    if (_isDigest) return _buildDigestList();
+
     return ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -489,39 +791,178 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  /// 顶部一行小字：现在问的是哪门考试（系统提示里也带了，这里是给用户看的）
-  Widget _bubble(ChatMessage m) {
-    final ModulePalette p = ModulePalette.of(context);
-    final bool user = m.isUser;
-    return Align(
-      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        // 长按任何一句都能单独处理：复制或删除
-        onLongPress: () => _showMessageMenu(m),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 300),
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: user ? p.surfaceAlt : p.surface,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(user ? 14 : 4),
-              bottomRight: Radius.circular(user ? 4 : 14),
-            ),
-          ),
-          child: SelectableText(
-            m.content,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.45,
-              color: p.ink,
-            ),
-          ),
+  /// 复盘固定会话：非懒加载，保证每个词的行都在，目录才能精准跳转
+  Widget _buildDigestList() {
+    return Stack(
+      children: <Widget>[
+        ListView(
+          controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(12, 12, 44, 8),
+          children: <Widget>[
+            for (final ChatMessage m in _messages) _bubble(m),
+            if (_digestRunning) _digestLoading(),
+            if (_error != null) _errorBubble(),
+          ],
         ),
+        if (_rail.isNotEmpty)
+          Positioned(
+            top: 12,
+            bottom: 12,
+            right: 0,
+            width: 32,
+            child: _DigestRail(entries: _rail, onTap: _jumpToWord),
+          ),
+      ],
+    );
+  }
+
+  void _jumpToWord(_RailEntry e) {
+    final BuildContext? ctx = _digestKeys[e.keyId]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        alignment: 0.06,
+      );
+    }
+    AppToast.show(context, e.word);
+  }
+
+  Widget _digestLoading() {
+    final ModulePalette p = ModulePalette.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.line),
+      ),
+      child: Row(
+        children: <Widget>[
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '正在整理今天的错词…',
+            style: TextStyle(fontSize: 12.5, color: p.muted),
+          ),
+        ],
       ),
     );
+  }
+
+  /// 顶部一行小字：现在问的是哪门考试（系统提示里也带了，这里是给用户看的）
+  Widget _bubble(ChatMessage m) {
+    final int? mid = m.id;
+    if (_isDigest && mid != null && m.content.startsWith(_digestPrefix)) {
+      final DigestResult? r = _digestResults[mid];
+      if (r != null) {
+        return DigestAnswerCard(
+          result: r,
+          keyAt: (int i) =>
+              _digestKeys['$mid-$i'] ?? GlobalKey(),
+        );
+      }
+    }
+    final ModulePalette p = ModulePalette.of(context);
+    final bool user = m.isUser;
+    final Color userFg = p.brightness == Brightness.light
+        ? Colors.white
+        : const Color(0xFF06101F);
+    final MemoryGraph? graph = m.id == null ? null : _graphs[m.id!];
+    final Widget bubble = Align(
+      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment:
+            user ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: <Widget>[
+          if (!user)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 3),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.auto_awesome, size: 11, color: p.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    'AI',
+                    style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 0.4,
+                      color: p.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          GestureDetector(
+            // 长按任何一句都能单独处理：复制或删除
+            onLongPress: () => _showMessageMenu(m),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 302),
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
+              decoration: BoxDecoration(
+                color: user ? p.blue : p.surface,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(user ? 16 : 5),
+                  topRight: Radius.circular(user ? 5 : 16),
+                  bottomLeft: const Radius.circular(16),
+                  bottomRight: const Radius.circular(16),
+                ),
+                border: user ? null : Border.all(color: p.line),
+              ),
+              child: Text(
+                user ? m.content : _plain(m.content),
+                style: TextStyle(
+                  fontSize: 15,
+                  height: user ? 1.5 : 1.65,
+                  letterSpacing: 0.15,
+                  color: user ? userFg : p.ink,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (graph == null) return bubble;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        bubble,
+        MemoryGraphCard(graph: graph),
+      ],
+    );
+  }
+
+  /// 模型有时还是会在正文里加 ** 和反引号，显示前统一抹掉
+  String _plain(String s) {
+    try {
+      String t = s
+          .replaceAllMapped(
+            RegExp(r'\*\*(.+?)\*\*'),
+            (Match m) => m.group(1) ?? '',
+          )
+          .replaceAllMapped(
+            RegExp(r'`(.+?)`'),
+            (Match m) => m.group(1) ?? '',
+          )
+          // Dart 不支持 (?m) 这种内联写法，多行模式要用构造参数
+          .replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '')
+          .replaceAll('**', '')
+          .replaceAll('```', '');
+      t = t.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+      return t.trim();
+    } catch (_) {
+      return s;
+    }
   }
 
   Widget _typingBubble() {
@@ -754,6 +1195,68 @@ class _PlaneSendButtonState extends State<_PlaneSendButton>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 右侧目录的一条：词 + 对应的行 key
+class _RailEntry {
+  final String word;
+  final String keyId;
+
+  const _RailEntry({required this.word, required this.keyId});
+}
+
+/// 竖向排列的横线目录：一条线代表一个词，点一下跳到那一行
+class _DigestRail extends StatelessWidget {
+  final List<_RailEntry> entries;
+  final void Function(_RailEntry) onTap;
+
+  const _DigestRail({required this.entries, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ModulePalette p = ModulePalette.of(context);
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints c) {
+        final int n = entries.length;
+        final double usable = c.maxHeight - 12;
+        final double step = n <= 1 ? 0 : usable / (n - 1);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            Positioned(
+              left: 15,
+              top: 6,
+              bottom: 6,
+              child: Container(width: 1, color: p.line),
+            ),
+            for (int i = 0; i < n; i++)
+              Positioned(
+                top: 6 + i * step - 6,
+                left: 0,
+                right: 0,
+                height: 12,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(entries[i]),
+                  child: Center(
+                    child: Container(
+                      width: 16,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: p.blue.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

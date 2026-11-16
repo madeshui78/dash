@@ -16,6 +16,7 @@ import '../services/backup_service.dart';
 import '../services/study_settings.dart';
 import '../services/track_store.dart';
 import '../services/tts_service.dart';
+import '../widgets/app_toast.dart';
 import 'privacy_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -87,9 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveStudy() async {
     final int? n = int.tryParse(_countInput.text.trim());
     if (n == null || n < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('每天抽几个要填 1 以上的整数')),
-      );
+      AppToast.show(context, '每天抽几个要填 1 以上的整数');
       return;
     }
     await StudySettings.setDailyCount(n);
@@ -97,8 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await StudySettings.setStudyFlow(_studyFlow);
     if (!mounted) return;
     setState(() => _dailyCount = n);
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('学习设置已保存')));
+    AppToast.show(context, '学习设置已保存');
   }
 
   Future<void> _save() async {
@@ -114,9 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await DatabaseHelper.instance
           .setSetting('tts_enabled', _ttsOn ? '1' : '0');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已保存')),
-      );
+      AppToast.show(context, '已保存');
     } catch (e) {
       if (!mounted) return;
       _showError('保存失败', e);
@@ -201,9 +197,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final int count = await BackupService.importJson(content);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导入 $count 个单词')),
-      );
+      AppToast.show(context, '已导入 $count 个单词');
     } catch (e) {
       if (!mounted) return;
       _showError('导入失败', e);
@@ -253,107 +247,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showError(String title, Object e) => _showResult(title, _msg(e));
 
   /// 生成形如 20261008_1047 的时间戳，用作文件名
-  // ---------------- 重合检查 ----------------
-
-  /// 扫一遍全库，找出「同一个英文出现在两条以上赛道」的词。
-  /// 四条赛道本该各记各的，出现重合多半是录的时候赛道没切，
-  /// 这里列出来，让用户自己决定从哪条赛道里删掉。
-  Future<void> _checkOverlap() async {
-    setState(() => _busyBackup = true);
-    List<Word> all;
-    try {
-      all = await DatabaseHelper.instance.getAllWords();
-    } catch (e) {
-      if (mounted) {
-        setState(() => _busyBackup = false);
-        _showError('读取失败', e);
-      }
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _busyBackup = false);
-
-    // 按英文小写分组
-    final Map<String, List<Word>> groups = <String, List<Word>>{};
-    for (final Word w in all) {
-      groups.putIfAbsent(w.en.trim().toLowerCase(), () => <Word>[]).add(w);
-    }
-    final List<List<Word>> dups = groups.values
-        .where((List<Word> g) => g.map((Word w) => w.track).toSet().length > 1)
-        .toList()
-      ..sort(
-        (List<Word> a, List<Word> b) => a.first.en.compareTo(b.first.en),
-      );
-
-    if (dups.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('四个分区没有重合的词')),
-        );
-      }
-      return;
-    }
-
-    await showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext ctx, StateSetter setDialog) {
-            return AlertDialog(
-              title: Text('有 ${dups.length} 个词跨分区重合'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: dups.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (BuildContext ctx, int i) {
-                    final List<Word> g = dups[i];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            g.first.en,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            children: g.map((Word w) {
-                              return ActionChip(
-                                avatar: const Icon(Icons.close, size: 16),
-                                label: Text(TrackStore.labelOf(w.track)),
-                                onPressed: () async {
-                                  await DatabaseHelper.instance
-                                      .deleteWord(w.id!);
-                                  setDialog(() {
-                                    g.remove(w);
-                                    if (g.length < 2) dups.remove(g);
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('知道了'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   String _timestamp() {
     final DateTime now = DateTime.now();
@@ -481,23 +374,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: const Icon(Icons.save_outlined),
                   label: const Text('保存上面这些设置'),
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-                const Divider(),
-                const SizedBox(height: 12),
-
-                _sectionTitle(cs, '分区重合检查'),
-                const SizedBox(height: 12),
-                _hint(cs, '同一个词被录进多个分区时，点标签可删。'),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _busyBackup ? null : _checkOverlap,
-                  icon: const Icon(Icons.content_copy_outlined),
-                  label: const Text('检查分区重合'),
-                  style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),
                 ),

@@ -12,6 +12,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'app_toast.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../db/database_helper.dart';
@@ -100,9 +102,7 @@ class _ExportSheetState extends State<_ExportSheet> {
       if (words.isEmpty) {
         if (!mounted) return;
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('这个范围里没有词')),
-        );
+        AppToast.show(context, '这个范围里没有词');
         return;
       }
       final String text = await BackupService.exportAs(
@@ -130,9 +130,7 @@ class _ExportSheetState extends State<_ExportSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导出失败：$e')),
-      );
+      AppToast.show(context, '导出失败：$e', duration: const Duration(seconds: 3));
     }
   }
 

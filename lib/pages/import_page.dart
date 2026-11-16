@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/word.dart';
 import '../services/ai_service.dart';
+import '../widgets/app_toast.dart';
 import '../services/import_service.dart';
 import '../services/track_store.dart';
 import '../services/word_enrich_service.dart';
@@ -287,11 +288,10 @@ class _ImportPageState extends State<ImportPage> {
       final String aiNote = _entries.isEmpty
           ? ''
           : '（其中 ${_entries.length} 个由 AI 补全了音标和释义）';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('导入完成：新增 ${r.added} 个，跳过重复 ${r.skipped} 个$aiNote'),
-          duration: const Duration(seconds: 4),
-        ),
+      AppToast.show(
+        context,
+        '导入完成：新增 ${r.added} 个，跳过 ${r.skipped} 个$aiNote',
+        duration: const Duration(seconds: 3),
       );
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -307,9 +307,7 @@ class _ImportPageState extends State<ImportPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
-    );
+    AppToast.show(context, msg, duration: const Duration(seconds: 3));
   }
 
   @override

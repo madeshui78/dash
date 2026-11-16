@@ -24,6 +24,7 @@ import '../services/track_store.dart';
 import '../services/tts_service.dart';
 import '../theme/module_palette.dart';
 import '../widgets/fx.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/motion_button.dart';
 
 class EssayPage extends StatefulWidget {
@@ -187,6 +188,26 @@ class _EssayPageState extends State<EssayPage> {
       }
     }
 
+    // 先把以前补过的词从库里读出来，打开就能看到释义，不用再等 AI
+    final List<String> unknownKeys = uniq
+        .where((String k) => !dict.containsKey(k) && !_aiDict.containsKey(k))
+        .toList();
+    if (unknownKeys.isNotEmpty) {
+      final Map<String, String> cached =
+          await DatabaseHelper.instance.getGlosses(unknownKeys);
+      cached.forEach((String k, String zh) {
+        if (zh.isNotEmpty) {
+          _aiDict[k] = WordEntry(
+            en: k,
+            phonetic: '',
+            zh: zh,
+            example: '',
+            root: '',
+          );
+        }
+      });
+    }
+
     if (!mounted) return;
     setState(() {
       _essay = essay;
@@ -257,13 +278,9 @@ class _EssayPageState extends State<EssayPage> {
     });
     await _prepare(essay, focusPara: para);
     if (!mounted || word == null) return;
-    // 顶部提示一句，避免用户在一屏字里自己找
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已定位到「$word」'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // 页签切换有 300ms 动画，等它落位再滚一次，不然算出来的位置是隐藏状态的
+    await Future<void>.delayed(const Duration(milliseconds: 380));
+    if (mounted) _scrollToPara(para);
   }
 
   void _scrollToPara(int para) {
@@ -279,7 +296,7 @@ class _EssayPageState extends State<EssayPage> {
     });
   }
 
-  /// 后台补生词释义。分批来，回一批刷一次。
+  /// 后台补生词释义。只问中文，一批 40 个，两批并发，回来的立刻落库。
   Future<void> _fillUnknown(
     List<List<EssayToken>> paras,
     Map<String, Word> dict,
@@ -298,20 +315,41 @@ class _EssayPageState extends State<EssayPage> {
       }
     }
     if (todo.isEmpty) return;
-    if (todo.length > 80) todo.removeRange(80, todo.length);
+    if (todo.length > 240) todo.removeRange(240, todo.length);
 
     setState(() => _filling = true);
     try {
       final AiConfig cfg = await AiService.loadConfig();
-      for (int i = 0; i < todo.length; i += AiService.batchSize) {
-        final List<String> batch = i + AiService.batchSize > todo.length
-            ? todo.sublist(i)
-            : todo.sublist(i, i + AiService.batchSize);
-        final List<WordEntry> got = await AiService.lookupWords(cfg, batch);
-        for (int k = 0; k < got.length && k < batch.length; k++) {
-          if (got[k].zh.trim().isEmpty) continue;
-          _aiDict[batch[k].toLowerCase()] = got[k];
+      const int size = AiService.glossBatchSize;
+
+      // 每次并发两批，整体大概能快一倍
+      for (int i = 0; i < todo.length; i += size * 2) {
+        final List<Future<Map<String, String>>> jobs =
+            <Future<Map<String, String>>>[];
+        for (int j = 0; j < 2; j++) {
+          final int start = i + j * size;
+          if (start >= todo.length) break;
+          final int end =
+              start + size > todo.length ? todo.length : start + size;
+          jobs.add(AiService.lookupGlosses(cfg, todo.sublist(start, end)));
         }
+        final List<Map<String, String>> results =
+            await Future.wait(jobs);
+
+        final Map<String, String> merged = <String, String>{};
+        for (final Map<String, String> r in results) {
+          merged.addAll(r);
+          r.forEach((String k, String zh) {
+            _aiDict[k] = WordEntry(
+              en: k,
+              phonetic: '',
+              zh: zh,
+              example: '',
+              root: '',
+            );
+          });
+        }
+        await DatabaseHelper.instance.saveGlosses(merged);
         if (!mounted) return;
         setState(() {});
       }
@@ -426,6 +464,17 @@ class _EssayPageState extends State<EssayPage> {
     final Word? w = _dict[first];
     if (w != null && w.zh.isNotEmpty) return w.zh;
     return _aiDict[first]?.zh ?? '';
+  }
+
+  /// 标记可能是短语（that textbooks），拆开逐个高亮
+  bool _isFocusWord(String raw) {
+    final String? f = _focusWord;
+    if (f == null) return false;
+    final String w = raw.toLowerCase();
+    for (final String part in f.toLowerCase().split(RegExp(r'\s+'))) {
+      if (part.isNotEmpty && part == w) return true;
+    }
+    return false;
   }
 
   /// 正文里一个词的中文：本地词库优先，其次 AI 补的
@@ -727,21 +776,37 @@ class _EssayPageState extends State<EssayPage> {
     setState(() => _translating = true);
     try {
       final AiConfig cfg = await AiService.loadConfig();
-      final String raw = await AiService.chat(
-        cfg,
-        <ChatMessage>[
-          ChatMessage(
-            role: 'user',
-            content: '把下面这篇英语作文逐句翻译成中文。\n'
-                '输出 JSON 数组，不要 markdown 代码块，不要解释。格式：\n'
-                '[{"en":"原句","zh":"中文译文"}]\n'
-                '一句一条，按原文顺序。\n\n${essay.text}',
-          ),
-        ],
-        systemPrompt: '你是一名英语翻译，译文自然、准确，严格按 JSON 输出。',
+
+      // 按段落切成 2–3 块并发翻译，比整篇一次快一倍左右
+      final List<String> paras = essay.text
+          .split(RegExp(r'\n\s*\n'))
+          .map((String s) => s.trim())
+          .where((String s) => s.isNotEmpty)
+          .toList();
+      final List<String> chunks = <String>[];
+      if (paras.length >= 3) {
+        final int n = paras.length >= 6 ? 3 : 2;
+        final int per = (paras.length / n).ceil();
+        for (int i = 0; i < paras.length; i += per) {
+          final int end = i + per > paras.length ? paras.length : i + per;
+          chunks.add(paras.sublist(i, end).join('\n\n'));
+        }
+      } else {
+        chunks.add(essay.text);
+      }
+
+      final List<List<Map<String, String>>> results = await Future.wait(
+        chunks.map((String t) => AiService.translateSentences(cfg, t)),
       );
-      final List<EssayPair> pairs = _parsePairs(raw);
+
+      final List<EssayPair> pairs = <EssayPair>[];
+      for (final List<Map<String, String>> part in results) {
+        for (final Map<String, String> m in part) {
+          pairs.add(EssayPair(en: m['en'] ?? '', zh: m['zh'] ?? ''));
+        }
+      }
       if (pairs.isEmpty) throw Exception('没解析出译文，换个说法再试');
+
       await DatabaseHelper.instance.saveEssayTranslation(
         essay.id,
         jsonEncode(
@@ -948,7 +1013,7 @@ class _EssayPageState extends State<EssayPage> {
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    AppToast.show(context, msg);
   }
 
   String _short(Object e) {
@@ -1111,8 +1176,7 @@ class _EssayPageState extends State<EssayPage> {
                       showGloss: _showZh,
                       size: _fontSize,
                       marked: _marked.contains(t.word!.toLowerCase()),
-                      focused: _focusWord != null &&
-                          _focusWord!.toLowerCase() == t.word!.toLowerCase(),
+                      focused: _isFocusWord(t.word!),
                       unknown: _zhFor(t.word!).isEmpty,
                       onTap: _marking
                           ? () => _toggleMark(t.word!)
@@ -1213,11 +1277,9 @@ class _EssayPageState extends State<EssayPage> {
           onSelected: (String v) {
             if (v == 'import') _import();
             if (v == 'speak') TtsService.speak(_essay?.text ?? '');
-            if (v == 'translate') _openTranslation();
           },
           itemBuilder: (BuildContext ctx) => const <PopupMenuEntry<String>>[
             PopupMenuItem<String>(value: 'speak', child: Text('朗读全文')),
-            PopupMenuItem<String>(value: 'translate', child: Text('整篇译文')),
             PopupMenuItem<String>(value: 'import', child: Text('导入文件')),
           ],
         ),
@@ -1274,8 +1336,11 @@ class _WordText extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 1),
         decoration: focused
             ? BoxDecoration(
-                color: p.wrong.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(3),
+                color: p.amber.withValues(alpha: 0.30),
+                borderRadius: BorderRadius.circular(4),
+                border: Border(
+                  bottom: BorderSide(color: p.wrong, width: 2),
+                ),
               )
             : null,
         child: Column(

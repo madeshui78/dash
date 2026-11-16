@@ -11,14 +11,18 @@ import 'pages/add_word_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/consent_gate.dart';
 import 'pages/checkin_page.dart';
+import 'pages/digest_records_page.dart';
 import 'pages/essay_page.dart';
 import 'pages/import_page.dart';
+import 'pages/key_gate.dart';
 import 'pages/review_page.dart';
+import 'pages/sections_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/stats_page.dart';
 import 'pages/word_list_page.dart';
 import 'pages/wrong_word_page.dart';
 import 'services/checkin_store.dart';
+import 'services/chat_focus.dart';
 import 'services/starter_words.dart';
 import 'services/theme_store.dart';
 import 'services/track_store.dart';
@@ -94,7 +98,9 @@ class EnglishApp extends StatelessWidget {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: mode,
-          home: const ConsentGate(child: _EntryPoint()),
+          home: const ConsentGate(
+            child: KeyGate(child: _EntryPoint()),
+          ),
         );
       },
     );
@@ -137,10 +143,17 @@ class _HomePageState extends State<HomePage> {
       ),
       const ChatPage(),
     ];
+    ChatFocus.mode.addListener(_onModeRequest);
+  }
+
+  void _onModeRequest() {
+    if (ChatFocus.mode.value < 0) return;
+    setState(() => _index = 3);
   }
 
   @override
   void dispose() {
+    ChatFocus.mode.removeListener(_onModeRequest);
     _refreshTick.dispose();
     super.dispose();
   }
@@ -233,28 +246,40 @@ class _AnimatedBody extends StatefulWidget {
   State<_AnimatedBody> createState() => _AnimatedBodyState();
 }
 
-class _AnimatedBodyState extends State<_AnimatedBody> {
-  int _prev = 0;
+class _AnimatedBodyState extends State<_AnimatedBody>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+  );
+  bool _forward = true;
 
   @override
   void didUpdateWidget(covariant _AnimatedBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.index != widget.index) {
-      _prev = oldWidget.index;
+      _forward = widget.index >= oldWidget.index;
+      _c.forward(from: 0);
     }
   }
 
   @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool forward = widget.index >= _prev;
-    return TweenAnimationBuilder<double>(
-      key: ValueKey<int>(widget.index),
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      builder: (BuildContext context, double t, Widget? child) {
+    // 注意：不要给动画容器加 ValueKey(index)。
+    // 加了会导致每次切页重建整棵 IndexedStack，页面状态（聊天记录、草稿）全丢。
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (BuildContext context, Widget? child) {
+        final double t = Curves.easeOutCubic.transform(_c.value);
         return Transform.translate(
-          offset: Offset((forward ? 1 : -1) * 26 * (1 - t), 0),
+          offset: Offset((_forward ? 1 : -1) * 26 * (1 - t), 0),
           child: Transform.scale(
             scale: 0.965 + 0.035 * t,
             child: Opacity(opacity: 0.35 + 0.65 * t, child: child),
@@ -468,27 +493,27 @@ class _AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerRow(
-                  icon: Icons.style_outlined,
-                  label: '复习',
-                  color: p.blue,
-                  fx: TapFx.flipY,
-                  divider: true,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onPush(ReviewPage(refreshTick: refreshTick));
-                  },
-                ),
-                _DrawerRow(
                   icon: Icons.bar_chart_outlined,
                   label: '统计',
                   color: p.violet,
                   fx: TapFx.lift,
+                  divider: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onOpenPage(
                       StatsPage(refreshTick: refreshTick),
                       '统计',
                     );
+                  },
+                ),
+                _DrawerRow(
+                  icon: Icons.psychology_outlined,
+                  label: '错词复盘',
+                  color: p.blue,
+                  fx: TapFx.pulse,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    ChatFocus.openDigest();
                   },
                 ),
               ],
@@ -532,6 +557,16 @@ class _AppDrawer extends StatelessWidget {
                     Navigator.of(context).pop();
                   },
                 ),
+                _DrawerRow(
+                  icon: Icons.psychology_outlined,
+                  label: '错词记录',
+                  color: p.blue,
+                  fx: TapFx.pulse,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPush(const DigestRecordsPage());
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -557,39 +592,17 @@ class _AppDrawer extends StatelessWidget {
                   ),
                 ),
                 const Divider(indent: 16, endIndent: 16),
-                _FieldBlock(
-                  label: '外观',
-                  child: ValueListenableBuilder<ThemeMode>(
-                    valueListenable: ThemeStore.mode,
-                    builder: (BuildContext context, ThemeMode mode, Widget? _) {
-                      return Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          _Pill(
-                            label: '跟随系统',
-                            selected: mode == ThemeMode.system,
-                            color: p.violet,
-                            onTap: () => ThemeStore.set(ThemeMode.system),
-                          ),
-                          _Pill(
-                            label: '浅色',
-                            selected: mode == ThemeMode.light,
-                            color: p.violet,
-                            onTap: () => ThemeStore.set(ThemeMode.light),
-                          ),
-                          _Pill(
-                            label: '深色',
-                            selected: mode == ThemeMode.dark,
-                            color: p.violet,
-                            onTap: () => ThemeStore.set(ThemeMode.dark),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                _DrawerRow(
+                  icon: Icons.folder_outlined,
+                  label: '管理分区',
+                  color: p.blue,
+                  fx: TapFx.lift,
+                  divider: true,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPush(const SectionsPage());
+                  },
                 ),
-                const Divider(indent: 16, endIndent: 16),
                 _DrawerRow(
                   icon: Icons.settings_outlined,
                   label: '设置',

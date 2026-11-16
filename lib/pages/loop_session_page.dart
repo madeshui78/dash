@@ -16,6 +16,7 @@ import '../db/database_helper.dart';
 import '../models/word.dart';
 import '../services/session_draft.dart';
 import '../services/tts_service.dart';
+import '../widgets/app_toast.dart';
 
 class LoopSessionPage extends StatefulWidget {
   final List<Word> words;
@@ -143,9 +144,7 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
   void _submit() {
     final String typed = _input.text.trim();
     if (typed.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先写点什么，想不出来就点「想不起来」')),
-      );
+      AppToast.show(context, '先写点什么，想不出来就点「想不起来」');
       return;
     }
 

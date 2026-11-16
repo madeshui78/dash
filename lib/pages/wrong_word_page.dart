@@ -9,8 +9,11 @@ import '../db/database_helper.dart';
 import '../models/essay.dart';
 import '../models/word.dart';
 import '../services/essay_focus.dart';
+import '../services/chat_focus.dart';
+import '../services/digest_queue.dart';
 import '../services/track_store.dart';
 import '../theme/module_palette.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/empty_view.dart';
 import '../widgets/export_sheet.dart';
 import '../widgets/fx.dart';
@@ -43,6 +46,7 @@ class _Data {
 
 class _WrongWordPageState extends State<WrongWordPage> {
   late Future<_Data> _future;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -75,8 +79,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
     await DatabaseHelper.instance.markMastered(word);
     if (!mounted) return;
     _reload();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('已标记为掌握')));
+    AppToast.show(context, '已标记为掌握');
   }
 
   Future<void> _removeMark(EssayMarkHit h) async {
@@ -93,20 +96,85 @@ class _WrongWordPageState extends State<WrongWordPage> {
   }
 
   void _openEssay(EssayMarkHit h) {
-    EssayFocus.go(
-      EssayFocusRequest(
-        essayId: h.mark.essayId,
-        word: h.mark.word,
-        para: h.mark.para,
-      ),
-    );
+    // 先切到作文页签，等这一帧完成再发定位请求，
+    // 否则作文页在隐藏状态下算不出正确的滚动位置。
     widget.onOpenEssay?.call();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      EssayFocus.go(
+        EssayFocusRequest(
+          essayId: h.mark.essayId,
+          word: h.mark.word,
+          para: h.mark.para,
+        ),
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
 
+    return Column(
+      children: <Widget>[
+        Expanded(child: _buildList(p)),
+        _submitBar(p),
+      ],
+    );
+  }
+
+  /// 底部：把今天的错词交给 AI 复盘
+  Widget _submitBar(ModulePalette p) {
+    return Container(
+      decoration: BoxDecoration(
+        color: p.canvas,
+        border: Border(top: BorderSide(color: p.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 46,
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _submitting ? null : _submitToday,
+            icon: _submitting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.psychology_outlined, size: 18),
+            label: const Text('提交今日错词'),
+            style: FilledButton.styleFrom(
+              backgroundColor: p.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitToday() async {
+    setState(() => _submitting = true);
+    try {
+      final DigestTask? task =
+          await DigestQueue.buildToday(TrackStore.current.value);
+      if (!mounted) return;
+      if (task == null) {
+        AppToast.show(context, '今天还没有新的错词');
+        return;
+      }
+      DigestQueue.submit(task);
+      ChatFocus.openDigest();
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Widget _buildList(ModulePalette p) {
     return FutureBuilder<_Data>(
       future: _future,
       builder: (BuildContext context, AsyncSnapshot<_Data> snap) {
