@@ -117,7 +117,12 @@ class _EssayPageState extends State<EssayPage> {
 
   // ---------------- 加载 ----------------
 
-  Future<void> _load({bool forceNew = false, EssayPrefs? options}) async {
+  Future<void> _load({
+    bool forceNew = false,
+    EssayPrefs? options,
+    String? prompt,
+    String? webQuery,
+  }) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -129,10 +134,15 @@ class _EssayPageState extends State<EssayPage> {
       _prefs = await EssayStore.prefs();
       _topic = _prefs.topic;
       _fontSize = await EssayStore.fontSize();
-      final Essay essay = await EssayStore.todayEssay(
-        forceNew: forceNew,
-        options: options ?? _prefs,
-      );
+      final Essay essay = webQuery != null
+          ? await EssayStore.fromWeb(webQuery)
+          : (prompt != null
+              ? await EssayStore.fromPrompt(prompt)
+              : await EssayStore.todayEssay(
+                  forceNew: forceNew,
+                  options: options ?? _prefs,
+                ));
+      if (prompt != null || webQuery != null) _topic = essay.topic;
       await _prepare(essay);
     } catch (e) {
       if (!mounted) return;
@@ -573,6 +583,30 @@ class _EssayPageState extends State<EssayPage> {
   }
 
   // ---------------- 别的动作 ----------------
+
+  /// 生成入口：要么一句话描述，要么从网上摘一篇
+  Future<void> _openComposeSheet() async {
+    final _ComposeRequest? req = await showModalBottomSheet<_ComposeRequest>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => _ComposeSheet(
+        initialMode: _topic == 'web' ? 1 : 0,
+        initialText: _topic == 'web' ? '' : _prefs.requirement,
+      ),
+    );
+    if (req == null || !mounted) return;
+    final String text = req.text.trim();
+    if (text.isEmpty) {
+      _toast(req.mode == 1 ? '先写一句想找什么文章' : '先写一句想要什么作文');
+      return;
+    }
+    if (req.mode == 1) {
+      await _load(forceNew: true, webQuery: text);
+    } else {
+      await _load(forceNew: true, prompt: text);
+    }
+  }
 
   /// 自定义：体裁、字数、难度、内容要求
   Future<void> _openCustomSheet() async {
@@ -1227,19 +1261,23 @@ class _EssayPageState extends State<EssayPage> {
   Widget _toolbar(ModulePalette p) {
     return Row(
       children: <Widget>[
-        // 一个入口：点开就是生成条件面板，不再另放一个体裁下拉
+        // 一个入口：一句话描述，或从网上摘一篇
         InkWell(
-          onTap: _openCustomSheet,
+          onTap: _openComposeSheet,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.tune, size: 16, color: p.essay),
+                Icon(Icons.auto_awesome, size: 16, color: p.essay),
                 const SizedBox(width: 6),
                 Text(
-                  '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词',
+                  _topic == 'web'
+                      ? '网上摘录'
+                      : (_topic == 'custom'
+                          ? 'AI 生成'
+                          : '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词'),
                   style: TextStyle(fontSize: 12, color: p.essay),
                 ),
                 Icon(Icons.expand_more, size: 15, color: p.essay),
@@ -1503,4 +1541,161 @@ class EssayPair {
   final String zh;
 
   const EssayPair({required this.en, required this.zh});
+}
+
+/// 生成作文的两种方式
+class _ComposeRequest {
+  final int mode; // 0 描述生成，1 网上摘录
+  final String text;
+
+  const _ComposeRequest(this.mode, this.text);
+}
+
+class _ComposeSheet extends StatefulWidget {
+  final int initialMode;
+  final String initialText;
+
+  const _ComposeSheet({
+    required this.initialMode,
+    required this.initialText,
+  });
+
+  @override
+  State<_ComposeSheet> createState() => _ComposeSheetState();
+}
+
+class _ComposeSheetState extends State<_ComposeSheet> {
+  late int _mode;
+  late final TextEditingController _text;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialMode;
+    _text = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ModulePalette p = ModulePalette.of(context);
+    final bool web = _mode == 1;
+
+    Widget tab(String label, int v) {
+      final bool on = _mode == v;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _mode = v),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: on ? p.essay.withValues(alpha: 0.12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: on ? p.essay.withValues(alpha: 0.35) : p.line,
+              ),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                color: on ? p.essay : p.muted,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 18,
+        right: 18,
+        top: 4,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 18,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '生成一篇',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '说人话就行，不用挑选项。',
+            style: TextStyle(fontSize: 12, color: p.muted),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              tab('描述生成', 0),
+              const SizedBox(width: 8),
+              tab('网上找一篇', 1),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _text,
+            minLines: 3,
+            maxLines: 6,
+            autofocus: false,
+            style: const TextStyle(fontSize: 14, height: 1.5),
+            decoration: InputDecoration(
+              hintText: web
+                  ? '例如：给我一篇关于人工智能的最新论文\n或者贴一个文章链接'
+                  : '例如：给我一篇关于人与自然的议论文，\n难度大概相当于高一水平',
+              hintStyle: TextStyle(fontSize: 13, height: 1.6, color: p.muted),
+              filled: true,
+              fillColor: p.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: p.line),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: p.line),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            web
+                ? '会从公开网页抓一篇英文正文，可能需要 10–20 秒；抓不到会换一个来源。'
+                : '体裁、篇幅、难度都可以写在一句话里，没写就按高中/CET4、400 词左右处理。',
+            style: TextStyle(fontSize: 11, height: 1.6, color: p.muted),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_ComposeRequest(_mode, _text.text)),
+              style: FilledButton.styleFrom(
+                backgroundColor: p.essay,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(web ? '去网上找' : '生成'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

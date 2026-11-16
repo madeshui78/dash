@@ -9,6 +9,7 @@ import '../db/database_helper.dart';
 import '../models/essay.dart';
 import 'ai_service.dart';
 import 'track_store.dart';
+import 'web_article.dart';
 
 /// 作文类型。和考试无关，是文章体裁。
 class EssayTopic {
@@ -50,6 +51,7 @@ class EssayStore {
     EssayTopic('chart', '图表'),
     EssayTopic('narrative', '记叙'),
     EssayTopic('exposition', '说明'),
+    EssayTopic('web', '网上摘录'),
   ];
 
   static String labelOf(String id) {
@@ -171,6 +173,69 @@ class EssayStore {
       id: newUuid(),
       date: date,
       topic: p.topic,
+      title: title,
+      text: body,
+      track: track,
+      createdAt: now.millisecondsSinceEpoch,
+    );
+    await DatabaseHelper.instance.saveEssay(essay);
+    return essay;
+  }
+
+  /// 一句话描述，直接让 AI 按描述写。例如：
+  /// 「给我一篇关于人与自然的议论文，难度大概相当于高一水平」
+  static Future<Essay> fromPrompt(String prompt) async {
+    final AiConfig cfg = await AiService.loadConfig();
+    final String track = TrackStore.current.value;
+    final String exam = TrackStore.labelOf(track);
+
+    final String raw = await AiService.chat(
+      cfg,
+      <ChatMessage>[
+        ChatMessage(
+          role: 'user',
+          content: '按下面的要求写一篇英语精读文章：\n$prompt\n\n'
+              '要求没写清楚的地方，按这些默认值补：约 400 词、3-4 段、'
+              '议论文或说明文、难度相当于中国高中/CET4。\n'
+              '用词地道，句式有变化，别用太生僻的词。\n'
+              '输出格式：第一行写 TITLE: 英文标题，空一行后写正文。'
+              '只输出作文，不要解释、不要中文翻译。',
+        ),
+      ],
+      systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。',
+    );
+
+    return _save(
+      topic: 'custom',
+      title: _pickTitle(raw),
+      body: _stripTitle(raw),
+      track: track,
+    );
+  }
+
+  /// 从网上摘一篇：让 WebArticleService 抓正文，直接当精读材料
+  static Future<Essay> fromWeb(String query) async {
+    final WebArticle a = await WebArticleService.fetch(query);
+    final String track = TrackStore.current.value;
+    return _save(
+      topic: 'web',
+      title: a.title.isEmpty ? 'From the Web' : a.title,
+      body: a.text,
+      track: track,
+    );
+  }
+
+  static Future<Essay> _save({
+    required String topic,
+    required String title,
+    required String body,
+    required String track,
+  }) async {
+    final DateTime now = DateTime.now();
+    final Essay essay = Essay(
+      id: newUuid(),
+      date: today(),
+      topic: topic,
       title: title,
       text: body,
       track: track,
