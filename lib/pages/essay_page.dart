@@ -580,76 +580,86 @@ class _EssayPageState extends State<EssayPage> {
     final String? result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       showDragHandle: true,
       builder: (BuildContext ctx) {
         final ModulePalette p = ModulePalette.of(ctx);
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            0,
-            20,
-            MediaQuery.viewInsetsOf(ctx).bottom + 18,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                '批注 · $raw',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: p.ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '只记在这篇文章里，之后可以在「批注本」回看。',
-                style: TextStyle(fontSize: 11.5, color: p.muted),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                minLines: 3,
-                maxLines: 6,
-                style: const TextStyle(fontSize: 14, height: 1.5),
-                decoration: InputDecoration(
-                  hintText: '记下你的理解、搭配、易错点…',
-                  hintStyle: TextStyle(fontSize: 13, color: p.muted),
-                  filled: true,
-                  fillColor: p.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: p.line),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: p.line),
+        final double avail = MediaQuery.sizeOf(ctx).height -
+            MediaQuery.viewInsetsOf(ctx).bottom;
+        final double h = (avail * 0.72).clamp(300.0, 620.0);
+
+        return SizedBox(
+          height: h,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  '批注 · $raw',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: p.ink,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  if (has)
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop('__delete__'),
-                      child: Text(
-                        '删除批注',
-                        style: TextStyle(fontSize: 12, color: p.wrong),
+                const SizedBox(height: 4),
+                Text(
+                  '只记在这篇文章里，之后可以在「批注本」回看。',
+                  style: TextStyle(fontSize: 11.5, color: p.muted),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    autofocus: true,
+                    expands: true,
+                    maxLines: null,
+                    minLines: null,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: const TextStyle(fontSize: 14, height: 1.5),
+                    decoration: InputDecoration(
+                      hintText: '记下你的理解、搭配、易错点…',
+                      hintStyle: TextStyle(fontSize: 13, color: p.muted),
+                      filled: true,
+                      fillColor: p.surface,
+                      contentPadding: const EdgeInsets.all(12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: p.line),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: p.line),
                       ),
                     ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () =>
-                        Navigator.of(ctx).pop(ctrl.text.trim()),
-                    style: FilledButton.styleFrom(backgroundColor: p.blue),
-                    child: const Text('保存'),
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: <Widget>[
+                    if (has)
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop('__delete__'),
+                        child: Text(
+                          '删除批注',
+                          style: TextStyle(fontSize: 12, color: p.wrong),
+                        ),
+                      ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(ctrl.text.trim()),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: p.blue,
+                        minimumSize: const Size(96, 44),
+                      ),
+                      child: const Text('保存'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1625,12 +1635,12 @@ class _WordSheet extends StatelessWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        // 底部多留一截，批注按钮不会被系统手势区吃掉
+        // 底部多留一截，批注按钮不会被底部页签/系统手势区吃掉
         padding: EdgeInsets.fromLTRB(
           20,
           4,
           20,
-          24 + MediaQuery.paddingOf(context).bottom,
+          140 + MediaQuery.paddingOf(context).bottom,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

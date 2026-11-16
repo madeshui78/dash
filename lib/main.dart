@@ -11,6 +11,7 @@ import 'pages/add_word_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/consent_gate.dart';
 import 'pages/checkin_page.dart';
+import 'pages/checkin_records_page.dart';
 import 'pages/digest_records_page.dart';
 import 'pages/essay_notes_page.dart';
 import 'pages/essay_page.dart';
@@ -22,14 +23,12 @@ import 'pages/settings_page.dart';
 import 'pages/stats_page.dart';
 import 'pages/word_list_page.dart';
 import 'pages/wrong_word_page.dart';
-import 'services/checkin_store.dart';
 import 'services/chat_focus.dart';
 import 'services/starter_words.dart';
 import 'services/theme_store.dart';
 import 'services/track_store.dart';
 import 'theme/app_theme.dart';
 import 'theme/module_palette.dart';
-import 'widgets/app_toast.dart';
 import 'widgets/export_sheet.dart';
 import 'widgets/fx.dart';
 import 'widgets/smooth_route.dart';
@@ -529,6 +528,7 @@ class _AppDrawer extends StatelessWidget {
                   label: '批注本',
                   color: p.amber,
                   fx: TapFx.pop,
+                  divider: true,
                   onTap: () {
                     Navigator.of(context).pop();
                     onPush(const EssayNotesPage());
@@ -561,11 +561,10 @@ class _AppDrawer extends StatelessWidget {
                   label: '打卡记录',
                   color: p.wrong,
                   fx: TapFx.wave,
+                  divider: true,
                   onTap: () async {
-                    final int streak = await CheckInStore.streak();
-                    if (!context.mounted) return;
-                    AppToast.show(context, '连续打卡 $streak 天');
                     Navigator.of(context).pop();
+                    onPush(const CheckinRecordsPage());
                   },
                 ),
                 _DrawerRow(
