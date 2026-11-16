@@ -1295,26 +1295,35 @@ class _EssayPageState extends State<EssayPage> {
   Widget _toolbar(ModulePalette p) {
     return Row(
       children: <Widget>[
-        // 一个入口：一句话描述，或从网上摘一篇
+        // 一个入口：一句话描述，或联网搜一篇
         InkWell(
           onTap: _openComposeSheet,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: p.essay.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: p.essay.withValues(alpha: 0.20)),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.auto_awesome, size: 16, color: p.essay),
-                const SizedBox(width: 6),
+                Icon(Icons.auto_awesome, size: 18, color: p.essay),
+                const SizedBox(width: 7),
                 Text(
                   _topic == 'web'
-                      ? '网上摘录'
+                      ? '联网摘录'
                       : (_topic == 'custom'
                           ? 'AI 生成'
                           : '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词'),
-                  style: TextStyle(fontSize: 12, color: p.essay),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: p.essay,
+                  ),
                 ),
-                Icon(Icons.expand_more, size: 15, color: p.essay),
+                Icon(Icons.expand_more, size: 17, color: p.essay),
               ],
             ),
           ),
@@ -1661,24 +1670,19 @@ class _ComposeSheetState extends State<_ComposeSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '生成一篇',
+            '作文',
             style: TextStyle(
-              fontSize: 17,
+              fontSize: 18,
               fontWeight: FontWeight.w600,
               color: p.ink,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '说人话就行，不用挑选项。',
-            style: TextStyle(fontSize: 12, color: p.muted),
           ),
           const SizedBox(height: 14),
           Row(
             children: <Widget>[
               tab('描述生成', 0),
               const SizedBox(width: 8),
-              tab('网上找一篇', 1),
+              tab('联网搜索', 1),
             ],
           ),
           const SizedBox(height: 14),
@@ -1708,7 +1712,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
           const SizedBox(height: 10),
           Text(
             web
-                ? '会从公开网页抓一篇英文正文，可能需要 10–20 秒；抓不到会换一个来源。'
+                ? '会联网抓取英文正文，最长 4000 词；论文较长时可能要 20–30 秒。'
                 : '体裁、篇幅、难度都可以写在一句话里，没写就按高中/CET4、400 词左右处理。',
             style: TextStyle(fontSize: 11, height: 1.6, color: p.muted),
           ),
@@ -1725,7 +1729,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(web ? '去网上找' : '生成'),
+              child: Text(web ? '去搜索' : '生成'),
             ),
           ),
         ],

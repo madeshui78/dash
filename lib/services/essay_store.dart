@@ -56,7 +56,7 @@ class EssayStore {
 
   static String labelOf(String id) {
     if (id == 'custom') return 'AI 生成';
-    if (id == 'web') return '网上摘录';
+    if (id == 'web') return '联网摘录';
     for (final EssayTopic t in topics) {
       if (t.id == id) return t.label;
     }

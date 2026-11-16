@@ -188,7 +188,7 @@ class WebArticleService {
       if (text.isEmpty) return null;
       return WebArticle(
         title: (title == null || title.isEmpty) ? _pageTitle(html) : title,
-        text: _wrap(_limit(text, 900)),
+        text: _wrap(_limit(text, 4000)),
         source: url,
       );
     } catch (_) {
