@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../models/chat_session.dart';
 import '../models/essay.dart';
 import '../models/word.dart';
+import '../models/word_note.dart';
 import '../services/ai_service.dart';
 
 const Uuid _uuid = Uuid();
@@ -81,7 +82,8 @@ class DatabaseHelper {
   /// v14：新增 chat_graphs（错词复盘生成的记忆图谱，挂在消息下面）。
   /// v15：对话分类型 + digest_records（后台提交的错词原文）。
   /// v16：digest_qa（复盘悬浮窗的追问，挂在某条复盘结果下）。
-  static const int _dbVersion = 16;
+  /// v17：word_notes（作文里单词的批注，按文章独立）。
+  static const int _dbVersion = 17;
 
   static const String tableWords = 'words';
   static const String tableReviews = 'reviews';
@@ -365,6 +367,23 @@ class DatabaseHelper {
         created_at INTEGER NOT NULL
       )
     ''');
+
+    // 作文里单词的批注：同一篇里一个词一条，不同文章互不影响
+    await db.execute('''
+      CREATE TABLE word_notes (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        essay_id   TEXT NOT NULL,
+        word       TEXT NOT NULL,
+        sentence   TEXT NOT NULL DEFAULT '',
+        note       TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        UNIQUE (essay_id, word)
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_word_notes_essay ON word_notes (essay_id)',
+    );
   }
 
   /// 老版本升级：只会补上缺失的列/表，不会动已有数据
@@ -591,6 +610,23 @@ class DatabaseHelper {
           created_at INTEGER NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 17) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS word_notes (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          essay_id   TEXT NOT NULL,
+          word       TEXT NOT NULL,
+          sentence   TEXT NOT NULL DEFAULT '',
+          note       TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE (essay_id, word)
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_word_notes_essay ON word_notes (essay_id)',
+      );
     }
   }
 
@@ -1933,8 +1969,72 @@ class DatabaseHelper {
     await db.delete(tableSections, where: 'id = ?', whereArgs: <Object?>[id]);
   }
 
-  Future<List<ChatMessage>> getDigestQa(int messageId) async {
+  Future<WordNote?> getWordNote(String essayId, String word) async {
     final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      'word_notes',
+      where: 'essay_id = ? AND word = ?',
+      whereArgs: <Object?>[essayId, word],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : WordNote.fromMap(rows.first);
+  }
+
+  Future<List<WordNote>> getWordNotes(String essayId) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      'word_notes',
+      where: 'essay_id = ?',
+      whereArgs: <Object?>[essayId],
+      orderBy: 'updated_at DESC',
+    );
+    return rows.map(WordNote.fromMap).toList();
+  }
+
+  Future<void> saveWordNote({
+    required String essayId,
+    required String word,
+    required String sentence,
+    required String note,
+  }) async {
+    final Database db = await database;
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    await db.insert(
+      'word_notes',
+      <String, Object?>{
+        'essay_id': essayId,
+        'word': word,
+        'sentence': sentence,
+        'note': note,
+        'created_at': now,
+        'updated_at': now,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteWordNote(String essayId, String word) async {
+    final Database db = await database;
+    await db.delete(
+      'word_notes',
+      where: 'essay_id = ? AND word = ?',
+      whereArgs: <Object?>[essayId, word],
+    );
+  }
+
+  /// 批注本：所有文章按最近更新排序，带标题和日期
+  Future<List<WordNote>> getNoteOverview() async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.rawQuery('''
+      SELECT n.*, e.title AS essay_title, e.date AS essay_date
+      FROM word_notes n
+      LEFT JOIN essays e ON e.id = n.essay_id
+      ORDER BY n.updated_at DESC
+    ''');
+    return rows.map(WordNote.fromMap).toList();
+  }
+
+  Future<List<ChatMessage>> getDigestQa(int messageId) async {    final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query(
       'digest_qa',
       where: 'message_id = ?',

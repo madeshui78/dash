@@ -16,6 +16,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../db/database_helper.dart';
 import '../models/essay.dart';
 import '../models/word.dart';
+import '../models/word_note.dart';
 import '../services/ai_service.dart';
 import '../services/essay_focus.dart';
 import '../services/essay_service.dart';
@@ -55,6 +56,9 @@ class _EssayPageState extends State<EssayPage> {
 
   /// 标红的词（小写）。连续标几个就是短语
   final Set<String> _marked = <String>{};
+
+  /// 这篇作文里每个词的批注，key 是转小写的词
+  Map<String, String> _notes = <String, String>{};
 
   /// 当前这篇的标记，落库用
   List<EssayMark> _marks = <EssayMark>[];
@@ -170,6 +174,8 @@ class _EssayPageState extends State<EssayPage> {
     final List<List<EssayToken>> paras = _splitParas(essay.text);
     final List<EssayMark> marks =
         await DatabaseHelper.instance.getEssayMarks(essay.id);
+    final List<WordNote> notes =
+        await DatabaseHelper.instance.getWordNotes(essay.id);
     final String? savedZh =
         await DatabaseHelper.instance.getEssayTranslation(essay.id);
 
@@ -240,6 +246,9 @@ class _EssayPageState extends State<EssayPage> {
       _marked
         ..clear()
         ..addAll(marked);
+      _notes = <String, String>{
+        for (final WordNote n in notes) n.word.toLowerCase(): n.note,
+      };
       _paraKeys
         ..clear()
         ..addEntries(
@@ -536,6 +545,7 @@ class _EssayPageState extends State<EssayPage> {
         word: _dict[key],
         ai: _aiDict[key],
         note: _aiNotes[key],
+        annotation: _notes[key],
         loading: _pendingWord == key,
         marked: _marked.contains(key),
         onExplain: () async {
@@ -543,12 +553,125 @@ class _EssayPageState extends State<EssayPage> {
           if (!mounted) return;
           setState(() => _aiNotes[key] = note);
         },
+        onAnnotate: () {
+          Navigator.of(ctx).pop();
+          // 等词卡收完再开编辑层，否则两个 sheet 会打架
+          Future<void>.delayed(const Duration(milliseconds: 240), () {
+            if (mounted) _editNote(raw);
+          });
+        },
         onMark: () {
           Navigator.of(ctx).pop();
           _toggleMark(raw);
         },
       ),
     );
+  }
+
+  /// 给这个词写批注：按文章独立保存，之后在「批注本」里能翻到
+  Future<void> _editNote(String raw) async {
+    final Essay? essay = _essay;
+    if (essay == null) return;
+    final String key = raw.toLowerCase();
+    final TextEditingController ctrl =
+        TextEditingController(text: _notes[key] ?? '');
+    final bool has = (_notes[key] ?? '').isNotEmpty;
+
+    final String? result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        final ModulePalette p = ModulePalette.of(ctx);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            MediaQuery.viewInsetsOf(ctx).bottom + 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                '批注 · $raw',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: p.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '只记在这篇文章里，之后可以在「批注本」回看。',
+                style: TextStyle(fontSize: 11.5, color: p.muted),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 6,
+                style: const TextStyle(fontSize: 14, height: 1.5),
+                decoration: InputDecoration(
+                  hintText: '记下你的理解、搭配、易错点…',
+                  hintStyle: TextStyle(fontSize: 13, color: p.muted),
+                  filled: true,
+                  fillColor: p.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: p.line),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: p.line),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  if (has)
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop('__delete__'),
+                      child: Text(
+                        '删除批注',
+                        style: TextStyle(fontSize: 12, color: p.wrong),
+                      ),
+                    ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () =>
+                        Navigator.of(ctx).pop(ctrl.text.trim()),
+                    style: FilledButton.styleFrom(backgroundColor: p.blue),
+                    child: const Text('保存'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    ctrl.dispose();
+    if (result == null) return;
+
+    if (result == '__delete__' || result.isEmpty) {
+      await DatabaseHelper.instance.deleteWordNote(essay.id, key);
+      _notes.remove(key);
+      _toast('批注已删除');
+    } else {
+      await DatabaseHelper.instance.saveWordNote(
+        essayId: essay.id,
+        word: key,
+        sentence: _sentenceAround(raw),
+        note: result,
+      );
+      _notes[key] = result;
+      _toast('批注已保存');
+    }
+    if (mounted) setState(() {});
   }
 
   Future<String> _explain(String raw) async {
@@ -1246,6 +1369,7 @@ class _EssayPageState extends State<EssayPage> {
                       marked: _marked.contains(t.word!.toLowerCase()),
                       focused: _isFocusWord(t.word!),
                       unknown: _zhFor(t.word!).isEmpty,
+                      annotated: _notes.containsKey(t.word!.toLowerCase()),
                       onTap: _marking
                           ? () => _toggleMark(t.word!)
                           : () => _openWord(t.word!),
@@ -1380,6 +1504,7 @@ class _WordText extends StatelessWidget {
   final bool marked;
   final bool focused;
   final bool unknown;
+  final bool annotated;
   final VoidCallback onTap;
 
   const _WordText({
@@ -1390,6 +1515,7 @@ class _WordText extends StatelessWidget {
     required this.marked,
     required this.focused,
     required this.unknown,
+    required this.annotated,
     required this.onTap,
   });
 
@@ -1403,11 +1529,13 @@ class _WordText extends StatelessWidget {
       height: showGloss ? 1.2 : 1.55,
       color: color,
       fontWeight: marked || focused ? FontWeight.w600 : FontWeight.w400,
-      decoration: unknown && !marked && showGloss
+      decoration: annotated
           ? TextDecoration.underline
-          : null,
-      decorationStyle: TextDecorationStyle.dotted,
-      decorationColor: p.line,
+          : (unknown && !marked && showGloss ? TextDecoration.underline : null),
+      decorationStyle: annotated
+          ? TextDecorationStyle.solid
+          : TextDecorationStyle.dotted,
+      decorationColor: annotated ? p.blue : p.line,
     );
 
     return InkWell(
@@ -1461,9 +1589,11 @@ class _WordSheet extends StatelessWidget {
   final Word? word;
   final WordEntry? ai;
   final String? note;
+  final String? annotation;
   final bool loading;
   final bool marked;
   final Future<void> Function() onExplain;
+  final VoidCallback onAnnotate;
   final VoidCallback onMark;
 
   const _WordSheet({
@@ -1471,9 +1601,11 @@ class _WordSheet extends StatelessWidget {
     required this.word,
     this.ai,
     required this.note,
+    this.annotation,
     required this.loading,
     required this.marked,
     required this.onExplain,
+    required this.onAnnotate,
     required this.onMark,
   });
 
@@ -1493,7 +1625,13 @@ class _WordSheet extends StatelessWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        // 底部多留一截，批注按钮不会被系统手势区吃掉
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          24 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1571,6 +1709,39 @@ class _WordSheet extends StatelessWidget {
               const SizedBox(height: 8),
               SelectableText(note!, style: const TextStyle(fontSize: 14)),
             ],
+            if (annotation != null && annotation!.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 14),
+              Divider(color: p.line),
+              const SizedBox(height: 8),
+              Text(
+                '我的批注',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: p.muted,
+                ),
+              ),
+              const SizedBox(height: 4),
+              SelectableText(
+                annotation!,
+                style: TextStyle(fontSize: 13.5, height: 1.6, color: p.ink),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onAnnotate,
+                icon: const Icon(Icons.edit_note, size: 18),
+                label: Text(
+                  annotation == null || annotation!.isEmpty ? '写批注' : '编辑批注',
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  side: BorderSide(color: p.line),
+                ),
+              ),
+            ),
           ],
         ),
       ),

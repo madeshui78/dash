@@ -12,6 +12,7 @@ import 'pages/chat_page.dart';
 import 'pages/consent_gate.dart';
 import 'pages/checkin_page.dart';
 import 'pages/digest_records_page.dart';
+import 'pages/essay_notes_page.dart';
 import 'pages/essay_page.dart';
 import 'pages/import_page.dart';
 import 'pages/key_gate.dart';
@@ -523,6 +524,16 @@ class _AppDrawer extends StatelessWidget {
             _Section(
               title: '内容与数据',
               children: <Widget>[
+                _DrawerRow(
+                  icon: Icons.sticky_note_2_outlined,
+                  label: '批注本',
+                  color: p.amber,
+                  fx: TapFx.pop,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPush(const EssayNotesPage());
+                  },
+                ),
                 _DrawerRow(
                   icon: Icons.ios_share_outlined,
                   label: '导出词表',
