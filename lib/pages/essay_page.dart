@@ -82,6 +82,10 @@ class _EssayPageState extends State<EssayPage> {
 
   String _topic = EssayStore.topics.first.id;
 
+  /// 上一次是怎么生成的：换一篇时沿用同样的方式
+  String? _lastPrompt;
+  String? _lastWebQuery;
+
   /// 当前这组生成条件（体裁 / 字数 / 难度 / 内容要求）
   EssayPrefs _prefs = const EssayPrefs(
     topic: 'argument',
@@ -128,6 +132,14 @@ class _EssayPageState extends State<EssayPage> {
       _error = null;
       _focusWord = null;
       if (forceNew) _essay = null;
+      if (prompt != null) {
+        _lastPrompt = prompt;
+        _lastWebQuery = null;
+      }
+      if (webQuery != null) {
+        _lastWebQuery = webQuery;
+        _lastPrompt = null;
+      }
     });
 
     try {
@@ -142,7 +154,7 @@ class _EssayPageState extends State<EssayPage> {
                   forceNew: forceNew,
                   options: options ?? _prefs,
                 ));
-      if (prompt != null || webQuery != null) _topic = essay.topic;
+      _topic = essay.topic;
       await _prepare(essay);
     } catch (e) {
       if (!mounted) return;
@@ -584,6 +596,17 @@ class _EssayPageState extends State<EssayPage> {
 
   // ---------------- 别的动作 ----------------
 
+  /// 换一篇：沿用上一次的生成方式，不会把网摘偷偷换成 AI 作文
+  Future<void> _regenerate() async {
+    if (_lastWebQuery != null) {
+      await _load(forceNew: true, webQuery: _lastWebQuery);
+    } else if (_lastPrompt != null) {
+      await _load(forceNew: true, prompt: _lastPrompt);
+    } else {
+      await _load(forceNew: true);
+    }
+  }
+
   /// 生成入口：要么一句话描述，要么从网上摘一篇
   Future<void> _openComposeSheet() async {
     final _ComposeRequest? req = await showModalBottomSheet<_ComposeRequest>(
@@ -592,7 +615,9 @@ class _EssayPageState extends State<EssayPage> {
       showDragHandle: true,
       builder: (BuildContext ctx) => _ComposeSheet(
         initialMode: _topic == 'web' ? 1 : 0,
-        initialText: _topic == 'web' ? '' : _prefs.requirement,
+        initialText: _topic == 'web'
+            ? (_lastWebQuery ?? '')
+            : (_lastPrompt ?? _prefs.requirement),
       ),
     );
     if (req == null || !mounted) return;
@@ -1251,7 +1276,7 @@ class _EssayPageState extends State<EssayPage> {
             icon: Icons.autorenew,
             kind: MotionKind.spin,
             filled: false,
-            onPressed: () => _load(forceNew: true),
+            onPressed: _regenerate,
           ),
         ),
       ],

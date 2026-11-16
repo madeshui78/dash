@@ -55,7 +55,8 @@ class EssayStore {
   ];
 
   static String labelOf(String id) {
-    if (id == 'custom') return '导入';
+    if (id == 'custom') return 'AI 生成';
+    if (id == 'web') return '网上摘录';
     for (final EssayTopic t in topics) {
       if (t.id == id) return t.label;
     }
@@ -189,6 +190,14 @@ class EssayStore {
     final String track = TrackStore.current.value;
     final String exam = TrackStore.labelOf(track);
 
+    // 最近几篇的标题给模型看一眼，明确要求别换汤不换药
+    final List<Essay> recent =
+        await DatabaseHelper.instance.getRecentEssays(track: track, limit: 8);
+    final String avoid = recent
+        .map((Essay e) => '- ${e.title}')
+        .where((String s) => s.trim().length > 2)
+        .join('\n');
+
     final String raw = await AiService.chat(
       cfg,
       <ChatMessage>[
@@ -198,11 +207,14 @@ class EssayStore {
               '要求没写清楚的地方，按这些默认值补：约 400 词、3-4 段、'
               '议论文或说明文、难度相当于中国高中/CET4。\n'
               '用词地道，句式有变化，别用太生僻的词。\n'
+              '${avoid.isEmpty ? '' : '不要和最近这些文章重复（标题和主题都要换）：\n$avoid\n'}'
+              '如果题目没指定，换一个新的切入角度，不要套常见范文。\n'
               '输出格式：第一行写 TITLE: 英文标题，空一行后写正文。'
               '只输出作文，不要解释、不要中文翻译。',
         ),
       ],
-      systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。',
+      systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。'
+          '每次都要写新的标题和内容。',
     );
 
     return _save(
@@ -215,8 +227,16 @@ class EssayStore {
 
   /// 从网上摘一篇：让 WebArticleService 抓正文，直接当精读材料
   static Future<Essay> fromWeb(String query) async {
-    final WebArticle a = await WebArticleService.fetch(query);
     final String track = TrackStore.current.value;
+    final List<Essay> recent =
+        await DatabaseHelper.instance.getRecentEssays(track: track, limit: 8);
+    final Set<String> avoid = recent
+        .map((Essay e) => e.title.trim().toLowerCase())
+        .where((String t) => t.isNotEmpty)
+        .toSet();
+
+    final WebArticle a =
+        await WebArticleService.fetch(query, avoidTitles: avoid);
     return _save(
       topic: 'web',
       title: a.title.isEmpty ? 'From the Web' : a.title,

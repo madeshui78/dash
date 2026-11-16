@@ -29,7 +29,10 @@ class WebArticleService {
       'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
 
-  static Future<WebArticle> fetch(String query) async {
+  static Future<WebArticle> fetch(
+    String query, {
+    Set<String> avoidTitles = const <String>{},
+  }) async {
     final String q = query.trim();
     if (q.isEmpty) throw Exception('先写一句想要什么文章');
 
@@ -45,16 +48,19 @@ class WebArticleService {
             .hasMatch(q);
 
     if (academic) {
-      final WebArticle? a = await _fromArxiv(en);
+      final WebArticle? a =
+          await _fromArxiv(en, avoidTitles: avoidTitles);
       if (a != null) return a;
     }
 
-    final WebArticle? b = await _fromBing(en);
+    final WebArticle? b =
+        await _fromBing(en, avoidTitles: avoidTitles);
     if (b != null) return b;
 
     // 学术没抓到、搜索也没抓到，再给 arXiv 一次机会
     if (!academic) {
-      final WebArticle? a = await _fromArxiv(en);
+      final WebArticle? a =
+          await _fromArxiv(en, avoidTitles: avoidTitles);
       if (a != null) return a;
     }
     throw Exception('没找到合适的英文文章，换个更具体的说法试试');
@@ -82,12 +88,15 @@ class WebArticleService {
     }
   }
 
-  static Future<WebArticle?> _fromArxiv(String query) async {
+  static Future<WebArticle?> _fromArxiv(
+    String query, {
+    Set<String> avoidTitles = const <String>{},
+  }) async {
     try {
       final Uri uri = Uri.parse(
         'https://export.arxiv.org/api/query?search_query='
         '${Uri.encodeQueryComponent('all:$query')}'
-        '&start=0&max_results=5&sortBy=submittedDate&sortOrder=descending',
+        '&start=0&max_results=8&sortBy=submittedDate&sortOrder=descending',
       );
       final http.Response r =
           await http.get(uri, headers: <String, String>{'User-Agent': _ua})
@@ -101,6 +110,11 @@ class WebArticleService {
         final String summary =
             e.getElement('summary')?.innerText.trim() ?? '';
         if (title.isEmpty || id.isEmpty) continue;
+        if (avoidTitles.any(
+          (String t) => t.toLowerCase() == title.toLowerCase(),
+        )) {
+          continue;
+        }
 
         // 有 HTML 全文就用全文，否则退回摘要
         final String htmlUrl = id
@@ -121,7 +135,10 @@ class WebArticleService {
     return null;
   }
 
-  static Future<WebArticle?> _fromBing(String query) async {
+  static Future<WebArticle?> _fromBing(
+    String query, {
+    Set<String> avoidTitles = const <String>{},
+  }) async {
     final List<String> links = <String>[];
     try {
       final Uri uri = Uri.parse(
@@ -140,14 +157,20 @@ class WebArticleService {
           final String u = m.group(1) ?? '';
           if (u.contains('bing.com') || u.contains('microsoft.com')) continue;
           if (!links.contains(u)) links.add(u);
-          if (links.length >= 5) break;
+          if (links.length >= 8) break;
         }
       }
     } catch (_) {}
 
     for (final String link in links) {
       final WebArticle? a = await _fromUrl(link);
-      if (a != null && _words(a.text) >= 220) return a;
+      if (a == null || _words(a.text) < 220) continue;
+      if (avoidTitles.any(
+        (String t) => t.toLowerCase() == a.title.toLowerCase(),
+      )) {
+        continue;
+      }
+      return a;
     }
     return null;
   }
@@ -165,7 +188,7 @@ class WebArticleService {
       if (text.isEmpty) return null;
       return WebArticle(
         title: (title == null || title.isEmpty) ? _pageTitle(html) : title,
-        text: _wrap(_limit(text, 520)),
+        text: _wrap(_limit(text, 900)),
         source: url,
       );
     } catch (_) {
