@@ -1491,44 +1491,53 @@ class _EssayPageState extends State<EssayPage> {
     return Row(
       children: <Widget>[
         // 一个入口：一句话描述，或联网搜一篇
-        InkWell(
-          onTap: _openComposeSheet,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            decoration: BoxDecoration(
-              color: p.essay.withValues(alpha: 0.08),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: _openComposeSheet,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: p.essay.withValues(alpha: 0.20)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.auto_awesome, size: 18, color: p.essay),
-                const SizedBox(width: 7),
-                Text(
-                  _topic == 'web'
-                      ? '联网摘录'
-                      : (_topic == 'custom'
-                            ? 'AI 生成'
-                            : '${EssayStore.labelOf(_topic)} · 目标 ${_prefs.words} 词'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: p.essay,
-                  ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                decoration: BoxDecoration(
+                  color: p.essay.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: p.essay.withValues(alpha: 0.20)),
                 ),
-                Icon(Icons.expand_more, size: 17, color: p.essay),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.auto_awesome, size: 17, color: p.essay),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _topic == 'web'
+                            ? '联网摘录'
+                            : (_topic == 'custom'
+                                  ? 'AI 生成'
+                                  : '${EssayStore.labelOf(_topic)} · ${_prefs.words} 词'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: p.essay,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.expand_more, size: 16, color: p.essay),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 2),
         FxIconButton(
           icon: Icons.history,
           fx: TapFx.flipY,
           tooltip: '历史',
-          size: 20,
+          size: 19,
           color: p.blue,
           onPressed: _openHistory,
         ),
@@ -1536,7 +1545,7 @@ class _EssayPageState extends State<EssayPage> {
           icon: Icons.edit_outlined,
           fx: TapFx.tilt,
           tooltip: _marking ? '退出标记' : '标记',
-          size: 20,
+          size: 19,
           color: _marking ? p.wrong : p.wrong.withValues(alpha: 0.55),
           onPressed: () => setState(() => _marking = !_marking),
         ),
@@ -1544,12 +1553,13 @@ class _EssayPageState extends State<EssayPage> {
           icon: Icons.subtitles_outlined,
           fx: TapFx.pulse,
           tooltip: '释义',
-          size: 20,
+          size: 19,
           color: _showZh ? p.green : p.green.withValues(alpha: 0.60),
           onPressed: () => setState(() => _showZh = !_showZh),
         ),
         PopupMenuButton<String>(
-          icon: Icon(Icons.more_horiz, size: 20, color: p.muted),
+          icon: Icon(Icons.more_horiz, size: 19, color: p.muted),
+          padding: EdgeInsets.zero,
           onSelected: (String v) {
             if (v == 'import') _import();
             if (v == 'speak') TtsService.speak(_essay?.text ?? '');
