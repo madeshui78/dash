@@ -84,6 +84,9 @@ class _EssayPageState extends State<EssayPage> {
   /// 从错词本跳过来时要突出的词
   String? _focusWord;
 
+  /// 聚焦来自批注本（true）还是错词本（false），两种特效要区分开
+  bool _focusFromNote = false;
+
   String _topic = EssayStore.topics.first.id;
 
   /// 上一次是怎么生成的：换一篇时沿用同样的方式
@@ -289,6 +292,7 @@ class _EssayPageState extends State<EssayPage> {
   void _onFocusRequest() async {
     final EssayFocusRequest? req = EssayFocus.request.value;
     if (req == null) return;
+    _focusFromNote = req.markOnOpen;
     await _openEssay(req.essayId, word: req.word, para: req.para);
 
     // 从批注本进来的词：标红（字变红）+ 已有蓝色下划线，两种标记同时可见
@@ -1362,23 +1366,37 @@ class _EssayPageState extends State<EssayPage> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
               decoration: BoxDecoration(
-                color: p.wrong.withValues(alpha: 0.10),
+                color: (_focusFromNote ? p.blue : p.wrong).withValues(
+                  alpha: 0.10,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.bookmark, size: 15, color: p.wrong),
+                  Icon(
+                    _focusFromNote
+                        ? Icons.sticky_note_2_outlined
+                        : Icons.bookmark,
+                    size: 15,
+                    color: _focusFromNote ? p.blue : p.wrong,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '已标出：$_focusWord',
+                      '${_focusFromNote ? '批注位置' : '已标出'}：$_focusWord',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: p.wrong),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _focusFromNote ? p.blue : p.wrong,
+                      ),
                     ),
                   ),
                   TextButton(
-                    onPressed: () => setState(() => _focusWord = null),
+                    onPressed: () => setState(() {
+                      _focusWord = null;
+                      _focusFromNote = false;
+                    }),
                     child: const Text('知道了', style: TextStyle(fontSize: 11)),
                   ),
                 ],
@@ -1422,6 +1440,8 @@ class _EssayPageState extends State<EssayPage> {
                       size: _fontSize,
                       marked: _marked.contains(t.word!.toLowerCase()),
                       focused: _isFocusWord(t.word!),
+                      focusColor: _focusFromNote ? p.blue : p.amber,
+                      focusLine: _focusFromNote ? p.blue : p.wrong,
                       unknown: _zhFor(t.word!).isEmpty,
                       annotated: _notes.containsKey(t.word!.toLowerCase()),
                       onTap: _marking
@@ -1554,6 +1574,8 @@ class _WordText extends StatelessWidget {
   final double size;
   final bool marked;
   final bool focused;
+  final Color focusColor;
+  final Color focusLine;
   final bool unknown;
   final bool annotated;
   final VoidCallback onTap;
@@ -1565,6 +1587,8 @@ class _WordText extends StatelessWidget {
     required this.size,
     required this.marked,
     required this.focused,
+    required this.focusColor,
+    required this.focusLine,
     required this.unknown,
     required this.annotated,
     required this.onTap,
@@ -1597,9 +1621,9 @@ class _WordText extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 1),
         decoration: focused
             ? BoxDecoration(
-                color: p.amber.withValues(alpha: 0.30),
+                color: focusColor.withValues(alpha: 0.20),
                 borderRadius: BorderRadius.circular(4),
-                border: Border(bottom: BorderSide(color: p.wrong, width: 2)),
+                border: Border(bottom: BorderSide(color: focusLine, width: 2)),
               )
             : null,
         child: Column(
