@@ -249,9 +249,16 @@ class EssayStore {
   /// 从网上摘一篇：让 WebArticleService 抓正文，直接当精读材料
   /// 联网搜索选中的论文，直接当作文正文打开。
   /// 优先网页正文，PDF 抽出来的分栏常常是碎的。
-  static Future<Essay> fromPaper(PaperMeta paper) async {
+  static Future<Essay> fromPaper(PaperMeta paper, {String? text}) async {
     final String track = TrackStore.current.value;
-    final String raw = await PaperService.fetchText(paper, preferHtml: true);
+    final String raw =
+        text ?? await PaperService.fetchText(paper, preferHtml: true);
+    final int words = RegExp(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*")
+        .allMatches(raw)
+        .length;
+    if (words < 120) {
+      throw Exception('这篇没抓到正文，换一篇试试');
+    }
     final String body = _limitWords(raw, 4000);
     return _save(
       topic: 'web',

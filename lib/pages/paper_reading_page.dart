@@ -87,7 +87,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
 
   Future<void> _open(PaperMeta p) async {
     if (_tab == 1) {
-      Navigator.of(context).pop(p);
+      await _readOriginal(p);
       return;
     }
     setState(() {
@@ -114,6 +114,38 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
         _busy = false;
         _stage = '';
         _error = '精读失败：$e';
+      });
+    }
+  }
+
+  /// 抓正文再返回；抓不到就留在搜索页给提示，避免作文页出现 0 词空文
+  Future<void> _readOriginal(PaperMeta m) async {
+    setState(() {
+      _busy = true;
+      _stage = '正在抓取原文…';
+      _error = null;
+    });
+    try {
+      final String text = await PaperService.fetchText(m, preferHtml: true);
+      final int words = RegExp(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*")
+          .allMatches(text)
+          .length;
+      if (!mounted) return;
+      if (words < 120) {
+        setState(() {
+          _busy = false;
+          _stage = '';
+          _error = '这篇只拿到摘要或没有开放全文，换一篇试试';
+        });
+        return;
+      }
+      Navigator.of(context).pop(PaperPick(meta: m, text: text));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _stage = '';
+        _error = '抓取失败：$e';
       });
     }
   }
@@ -205,7 +237,11 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       final bool on = _tab == v;
       return Expanded(
         child: GestureDetector(
-          onTap: () => setState(() => _tab = v),
+          onTap: () => setState(() {
+            _tab = v;
+            _paper = null;
+            _data = null;
+          }),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 7),
             decoration: BoxDecoration(
@@ -466,7 +502,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: () => Navigator.of(context).pop(m),
+              onPressed: () => _readOriginal(m),
               icon: const Icon(Icons.menu_book_outlined, size: 15),
               label: const Text('读原文'),
             ),
@@ -568,7 +604,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           width: double.infinity,
           height: 44,
           child: OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).pop(m),
+            onPressed: () => _readOriginal(m),
             icon: const Icon(Icons.menu_book_outlined, size: 17),
             label: const Text('读原文'),
           ),

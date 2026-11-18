@@ -37,3 +37,11 @@ class PaperMeta {
     return bits.join(' · ');
   }
 }
+
+/// 用户选中「读原文」后带回作文页的数据
+class PaperPick {
+  final PaperMeta meta;
+  final String text;
+
+  const PaperPick({required this.meta, required this.text});
+}

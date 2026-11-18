@@ -135,7 +135,7 @@ class _EssayPageState extends State<EssayPage> {
     EssayPrefs? options,
     String? prompt,
     String? webQuery,
-    PaperMeta? paper,
+    PaperPick? pick,
   }) async {
     setState(() {
       _loading = true;
@@ -156,8 +156,8 @@ class _EssayPageState extends State<EssayPage> {
       _prefs = await EssayStore.prefs();
       _topic = _prefs.topic;
       _fontSize = await EssayStore.fontSize();
-      final Essay essay = paper != null
-          ? await EssayStore.fromPaper(paper)
+      final Essay essay = pick != null
+          ? await EssayStore.fromPaper(pick.meta, text: pick.text)
           : (webQuery != null
                 ? await EssayStore.fromWeb(webQuery)
                 : (prompt != null
@@ -790,13 +790,13 @@ class _EssayPageState extends State<EssayPage> {
       return;
     }
     if (req.mode == 1) {
-      final PaperMeta? picked = await Navigator.of(context).push<PaperMeta>(
-        MaterialPageRoute<PaperMeta>(
+      final PaperPick? picked = await Navigator.of(context).push<PaperPick>(
+        MaterialPageRoute<PaperPick>(
           builder: (BuildContext _) => PaperSearchPage(initialQuery: text),
         ),
       );
       if (picked == null || !mounted) return;
-      await _load(forceNew: true, paper: picked);
+      await _load(forceNew: true, pick: picked);
     } else {
       await _load(forceNew: true, prompt: text);
     }
