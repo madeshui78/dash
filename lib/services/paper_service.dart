@@ -16,6 +16,29 @@ class PaperService {
 
   static const String _ua = 'dash/1.0 (https://github.com/madeshui78/dash)';
 
+  /// 第一次请求常常因为网络还没热起来失败，重试一次再报错
+  static Future<http.Response> _getWithRetry(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 25),
+  }) async {
+    Object? last;
+    for (int i = 0; i < 2; i++) {
+      try {
+        final http.Response r = await http
+            .get(uri, headers: <String, String>{'User-Agent': _ua})
+            .timeout(timeout);
+        if (r.statusCode == 200) return r;
+        last = Exception('HTTP ${r.statusCode}');
+      } catch (e) {
+        last = e;
+      }
+      if (i == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+      }
+    }
+    throw last ?? Exception('网络请求失败');
+  }
+
   static Future<List<PaperMeta>> search(String query) async {
     final String q = query.trim();
     if (q.isEmpty) throw Exception('先写一句想要什么论文');
@@ -30,12 +53,10 @@ class PaperService {
       '&mailto=dash@example.com',
     );
 
-    final http.Response r = await http
-        .get(uri, headers: <String, String>{'User-Agent': _ua})
-        .timeout(const Duration(seconds: 20));
-    if (r.statusCode != 200) {
-      throw Exception('检索失败（HTTP ${r.statusCode}）');
-    }
+    final http.Response r = await _getWithRetry(
+      uri,
+      timeout: const Duration(seconds: 20),
+    );
 
     final Map<String, dynamic> data =
         jsonDecode(r.body) as Map<String, dynamic>;
@@ -110,7 +131,23 @@ class PaperService {
   }
 
   /// 优先下 PDF 抽全文；失败则抓落地页正文；再不行用摘要
-  static Future<String> fetchText(PaperMeta p) async {
+  static Future<String> fetchText(
+    PaperMeta p, {
+    bool preferHtml = false,
+  }) async {
+    // 读原文时优先网页：PDF 抽出来的分栏常常是碎的
+    if (preferHtml && p.url.isNotEmpty) {
+      try {
+        final http.Response r = await http
+            .get(Uri.parse(p.url), headers: <String, String>{'User-Agent': _ua})
+            .timeout(const Duration(seconds: 25));
+        if (r.statusCode == 200) {
+          final String text = _htmlText(r.body);
+          if (text.length > 800) return text;
+        }
+      } catch (_) {}
+    }
+
     if (p.pdfUrl.isNotEmpty) {
       try {
         final http.Response r = await http
@@ -141,18 +178,70 @@ class PaperService {
     return p.abstract;
   }
 
+  /// 把 8 篇候选压成一句中文概括，一次调用搞定
+  static Future<List<String>> summaries(List<PaperMeta> list) async {
+    if (list.isEmpty) return <String>[];
+    final StringBuffer b = StringBuffer();
+    for (int i = 0; i < list.length; i++) {
+      final PaperMeta p = list[i];
+      final String abs = p.abstract.length > 260
+          ? '${p.abstract.substring(0, 260)}…'
+          : p.abstract;
+      b.writeln('${i + 1}. ${p.title}\n$abs\n');
+    }
+
+    try {
+      final AiConfig cfg = await AiService.loadConfig();
+      final String out = await AiService.chat(cfg, <ChatMessage>[
+        ChatMessage(
+          role: 'user',
+          content:
+              '下面是 ${list.length} 篇论文的标题和摘要。'
+              '给每篇写一句中文概括，20-35 字，说清研究对象和主要发现，'
+              '不要评价。按顺序输出 JSON 字符串数组，例如 ["...","..."]，'
+              '不要代码块、不要序号。\n\n$b',
+        ),
+      ], systemPrompt: '你负责把英文学术摘要压成一句话中文概括。');
+      String s = out.trim().replaceAll(RegExp(r'^```[a-zA-Z]*'), '');
+      s = s.replaceAll('```', '').trim();
+      final int start = s.indexOf('[');
+      final int end = s.lastIndexOf(']');
+      if (start >= 0 && end > start) s = s.substring(start, end + 1);
+      final dynamic data = jsonDecode(s);
+      if (data is List) {
+        return data.map((dynamic e) => e.toString()).toList();
+      }
+    } catch (_) {}
+    return List<String>.filled(list.length, '');
+  }
+
   static String _pdfText(List<int> bytes) {
     PdfDocument? doc;
     try {
       doc = PdfDocument(inputBytes: bytes);
       final PdfTextExtractor extractor = PdfTextExtractor(doc);
       final String text = extractor.extractText();
-      return _clean(text);
+      return _cleanPdf(text);
     } catch (_) {
       return '';
     } finally {
       doc?.dispose();
     }
+  }
+
+  /// PDF 分栏会把一行拆成很多短行，丢掉这些碎片，只留成句的段落
+  static String _cleanPdf(String raw) {
+    final List<String> kept = <String>[];
+    for (final String line in raw.split('\n')) {
+      final String t = line.trim();
+      if (t.isEmpty) continue;
+      final int words = RegExp(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*")
+          .allMatches(t)
+          .length;
+      if (words < 4) continue;
+      kept.add(t);
+    }
+    return _clean(kept.join(' '));
   }
 
   static String _htmlText(String html) {

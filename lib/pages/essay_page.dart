@@ -15,6 +15,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../db/database_helper.dart';
 import '../models/essay.dart';
+import '../models/paper.dart';
 import '../models/word.dart';
 import '../models/word_note.dart';
 import '../services/ai_service.dart';
@@ -24,9 +25,10 @@ import '../services/essay_store.dart';
 import '../services/track_store.dart';
 import '../services/tts_service.dart';
 import '../theme/module_palette.dart';
-import '../widgets/fx.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/fx.dart';
 import '../widgets/motion_button.dart';
+import 'paper_reading_page.dart';
 
 class EssayPage extends StatefulWidget {
   const EssayPage({super.key, this.embedded = false});
@@ -133,6 +135,7 @@ class _EssayPageState extends State<EssayPage> {
     EssayPrefs? options,
     String? prompt,
     String? webQuery,
+    PaperMeta? paper,
   }) async {
     setState(() {
       _loading = true;
@@ -153,14 +156,16 @@ class _EssayPageState extends State<EssayPage> {
       _prefs = await EssayStore.prefs();
       _topic = _prefs.topic;
       _fontSize = await EssayStore.fontSize();
-      final Essay essay = webQuery != null
-          ? await EssayStore.fromWeb(webQuery)
-          : (prompt != null
-                ? await EssayStore.fromPrompt(prompt)
-                : await EssayStore.todayEssay(
-                    forceNew: forceNew,
-                    options: options ?? _prefs,
-                  ));
+      final Essay essay = paper != null
+          ? await EssayStore.fromPaper(paper)
+          : (webQuery != null
+                ? await EssayStore.fromWeb(webQuery)
+                : (prompt != null
+                      ? await EssayStore.fromPrompt(prompt)
+                      : await EssayStore.todayEssay(
+                          forceNew: forceNew,
+                          options: options ?? _prefs,
+                        )));
       _topic = essay.topic;
       await _prepare(essay);
     } catch (e) {
@@ -785,7 +790,13 @@ class _EssayPageState extends State<EssayPage> {
       return;
     }
     if (req.mode == 1) {
-      await _load(forceNew: true, webQuery: text);
+      final PaperMeta? picked = await Navigator.of(context).push<PaperMeta>(
+        MaterialPageRoute<PaperMeta>(
+          builder: (BuildContext _) => PaperSearchPage(initialQuery: text),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      await _load(forceNew: true, paper: picked);
     } else {
       await _load(forceNew: true, prompt: text);
     }

@@ -7,7 +7,9 @@ import 'package:flutter/foundation.dart';
 
 import '../db/database_helper.dart';
 import '../models/essay.dart';
+import '../models/paper.dart';
 import 'ai_service.dart';
+import 'paper_service.dart';
 import 'track_store.dart';
 import 'web_article.dart';
 
@@ -64,8 +66,7 @@ class EssayStore {
   }
 
   static Future<String> topic() async {
-    final String? v =
-        await DatabaseHelper.instance.getSetting(keyTopic);
+    final String? v = await DatabaseHelper.instance.getSetting(keyTopic);
     for (final EssayTopic t in topics) {
       if (t.id == v) return t.id;
     }
@@ -100,12 +101,10 @@ class EssayStore {
   }
 
   /// 正文字号，14–24，默认 17
-  static final ValueNotifier<double> fontNotifier =
-      ValueNotifier<double>(17);
+  static final ValueNotifier<double> fontNotifier = ValueNotifier<double>(17);
 
   static Future<double> fontSize() async {
-    final String? v =
-        await DatabaseHelper.instance.getSetting(keyFontSize);
+    final String? v = await DatabaseHelper.instance.getSetting(keyFontSize);
     final double d = (double.tryParse(v ?? '') ?? 17).clamp(14.0, 24.0);
     fontNotifier.value = d;
     return d;
@@ -114,8 +113,7 @@ class EssayStore {
   static Future<void> setFontSize(double size) async {
     final double v = size.clamp(14.0, 24.0);
     fontNotifier.value = v;
-    await DatabaseHelper.instance
-        .setSetting(keyFontSize, v.toStringAsFixed(1));
+    await DatabaseHelper.instance.setSetting(keyFontSize, v.toStringAsFixed(1));
   }
 
   static String today() {
@@ -132,8 +130,10 @@ class EssayStore {
     final String track = TrackStore.current.value;
     final String date = today();
     if (!forceNew) {
-      final Essay? saved =
-          await DatabaseHelper.instance.getEssayForDay(track: track, date: date);
+      final Essay? saved = await DatabaseHelper.instance.getEssayForDay(
+        track: track,
+        date: date,
+      );
       if (saved != null) return saved;
     }
 
@@ -142,7 +142,9 @@ class EssayStore {
     final String exam = TrackStore.labelOf(track);
     final int para = p.words <= 150 ? 2 : (p.words <= 250 ? 3 : 4);
     final String angle = p.requirement.isEmpty
-        ? _angles[DateTime.now().millisecondsSinceEpoch ~/ 1000 % _angles.length]
+        ? _angles[DateTime.now().millisecondsSinceEpoch ~/
+              1000 %
+              _angles.length]
         : '';
 
     final String raw = await AiService.chat(
@@ -150,7 +152,8 @@ class EssayStore {
       <ChatMessage>[
         ChatMessage(
           role: 'user',
-          content: '写一篇英语作文，用于精读学习。\n'
+          content:
+              '写一篇英语作文，用于精读学习。\n'
               '考试水平：$exam\n'
               '体裁：${labelOf(p.topic)}\n'
               '篇幅：约 ${p.words} 词，分 $para 段。\n'
@@ -162,7 +165,8 @@ class EssayStore {
               '只输出作文，不要解释、不要中文翻译。',
         ),
       ],
-      systemPrompt: '你是一名英语写作老师，出的范文难度贴合中国学生的升学考试。'
+      systemPrompt:
+          '你是一名英语写作老师，出的范文难度贴合中国学生的升学考试。'
           '每次都要写新的题目和内容，不要重复用烂大街的范文。',
     );
 
@@ -191,14 +195,17 @@ class EssayStore {
     final String exam = TrackStore.labelOf(track);
 
     // 最近几篇的标题给模型看一眼，明确要求别换汤不换药
-    final List<Essay> recent =
-        await DatabaseHelper.instance.getRecentEssays(track: track, limit: 8);
+    final List<Essay> recent = await DatabaseHelper.instance.getRecentEssays(
+      track: track,
+      limit: 8,
+    );
     final String avoid = recent
         .map((Essay e) => '- ${e.title}')
         .where((String s) => s.trim().length > 2)
         .join('\n');
 
-    String build(String extra) => '按下面的要求写一篇英语精读文章：\n$prompt\n\n'
+    String build(String extra) =>
+        '按下面的要求写一篇英语精读文章：\n$prompt\n\n'
         '要求没写清楚的地方，按这些默认值补：约 400 词、3-4 段、'
         '议论文或说明文、难度相当于中国高中/CET4。\n'
         '用词地道，句式有变化，别用太生僻的词。\n'
@@ -211,7 +218,8 @@ class EssayStore {
     String raw = await AiService.chat(
       cfg,
       <ChatMessage>[ChatMessage(role: 'user', content: build(''))],
-      systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。'
+      systemPrompt:
+          '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。'
           '每次都要写新的标题和内容。',
     );
 
@@ -221,16 +229,12 @@ class EssayStore {
         .toSet();
     String title = _pickTitle(raw);
     if (used.contains(title.toLowerCase())) {
-      raw = await AiService.chat(
-        cfg,
-        <ChatMessage>[
-          ChatMessage(
-            role: 'user',
-            content: build('上一次的标题和已有文章重复了，必须换一个完全不同的标题和内容。\n'),
-          ),
-        ],
-        systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。',
-      );
+      raw = await AiService.chat(cfg, <ChatMessage>[
+        ChatMessage(
+          role: 'user',
+          content: build('上一次的标题和已有文章重复了，必须换一个完全不同的标题和内容。\n'),
+        ),
+      ], systemPrompt: '你是一名英语写作老师，正在为 $exam 水平的学习者选读文章。');
       title = _pickTitle(raw);
     }
 
@@ -243,17 +247,50 @@ class EssayStore {
   }
 
   /// 从网上摘一篇：让 WebArticleService 抓正文，直接当精读材料
+  /// 联网搜索选中的论文，直接当作文正文打开。
+  /// 优先网页正文，PDF 抽出来的分栏常常是碎的。
+  static Future<Essay> fromPaper(PaperMeta paper) async {
+    final String track = TrackStore.current.value;
+    final String raw = await PaperService.fetchText(paper, preferHtml: true);
+    final String body = _limitWords(raw, 4000);
+    return _save(
+      topic: 'web',
+      title: paper.title.isEmpty ? 'From the Web' : paper.title,
+      body: body,
+      track: track,
+    );
+  }
+
+  static String _limitWords(String text, int max) {
+    final List<String> words = text.split(RegExp(r'\s+'));
+    if (words.length <= max) return text;
+    final List<String> cut = words.take(max).toList();
+    // 尽量停在句号
+    for (int i = cut.length - 1; i > cut.length - 60; i--) {
+      if (cut[i].endsWith('.') ||
+          cut[i].endsWith('!') ||
+          cut[i].endsWith('?')) {
+        return cut.sublist(0, i + 1).join(' ');
+      }
+    }
+    return cut.join(' ');
+  }
+
   static Future<Essay> fromWeb(String query) async {
     final String track = TrackStore.current.value;
-    final List<Essay> recent =
-        await DatabaseHelper.instance.getRecentEssays(track: track, limit: 8);
+    final List<Essay> recent = await DatabaseHelper.instance.getRecentEssays(
+      track: track,
+      limit: 8,
+    );
     final Set<String> avoid = recent
         .map((Essay e) => e.title.trim().toLowerCase())
         .where((String t) => t.isNotEmpty)
         .toSet();
 
-    final WebArticle a =
-        await WebArticleService.fetch(query, avoidTitles: avoid);
+    final WebArticle a = await WebArticleService.fetch(
+      query,
+      avoidTitles: avoid,
+    );
     return _save(
       topic: 'web',
       title: a.title.isEmpty ? 'From the Web' : a.title,

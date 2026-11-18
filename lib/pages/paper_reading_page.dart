@@ -1,4 +1,7 @@
-// 论文精读：OpenAlex 检索 -> 选一篇 -> 抓全文 -> AI 结构化精读。
+// 联网搜索：一次检索，两个视角。
+//   精读：中文概括 + 结构化精读，读完可「读原文」
+//   原文：直接把这篇文章作为作文正文打开
+// 页面本身不落地任何文件，PDF 只在后台读取。
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,21 +11,34 @@ import '../services/paper_service.dart';
 import '../theme/module_palette.dart';
 import '../widgets/app_toast.dart';
 
-class PaperReadingPage extends StatefulWidget {
-  const PaperReadingPage({super.key});
+class PaperSearchPage extends StatefulWidget {
+  final String initialQuery;
+
+  const PaperSearchPage({super.key, this.initialQuery = ''});
 
   @override
-  State<PaperReadingPage> createState() => _PaperReadingPageState();
+  State<PaperSearchPage> createState() => _PaperSearchPageState();
 }
 
-class _PaperReadingPageState extends State<PaperReadingPage> {
+class _PaperSearchPageState extends State<PaperSearchPage> {
   final TextEditingController _q = TextEditingController();
   List<PaperMeta> _results = <PaperMeta>[];
+  List<String> _zh = <String>[];
   PaperMeta? _paper;
   Map<String, dynamic>? _data;
   bool _busy = false;
   String _stage = '';
   String? _error;
+  int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _q.text = widget.initialQuery;
+    if (widget.initialQuery.trim().isNotEmpty) {
+      Future<void>.microtask(_search);
+    }
+  }
 
   @override
   void dispose() {
@@ -33,7 +49,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
   Future<void> _search() async {
     final String q = _q.text.trim();
     if (q.isEmpty) {
-      AppToast.show(context, '先写一句想找什么论文');
+      AppToast.show(context, '先写一句想找什么');
       return;
     }
     setState(() {
@@ -41,6 +57,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
       _stage = '正在检索…';
       _error = null;
       _results = <PaperMeta>[];
+      _zh = <String>[];
       _paper = null;
       _data = null;
     });
@@ -53,6 +70,11 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
         _stage = '';
         if (list.isEmpty) _error = '没有找到开放获取的论文，换个说法试试';
       });
+      if (list.isNotEmpty) {
+        final List<String> zh = await PaperService.summaries(list);
+        if (!mounted) return;
+        setState(() => _zh = zh);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -64,6 +86,10 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
   }
 
   Future<void> _open(PaperMeta p) async {
+    if (_tab == 1) {
+      Navigator.of(context).pop(p);
+      return;
+    }
     setState(() {
       _paper = p;
       _busy = true;
@@ -94,9 +120,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
 
   List<String> _list(String key) {
     final dynamic v = _data?[key];
-    if (v is List) {
-      return v.map((dynamic e) => e.toString()).toList();
-    }
+    if (v is List) return v.map((dynamic e) => e.toString()).toList();
     return <String>[];
   }
 
@@ -116,20 +140,36 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
     final ModulePalette p = ModulePalette.of(context);
     return Scaffold(
       backgroundColor: p.canvas,
-      appBar: AppBar(title: const Text('论文精读')),
+      appBar: AppBar(title: const Text('联网搜索')),
       body: SafeArea(
         child: Column(
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: _searchBar(p),
             ),
+            const SizedBox(height: 8),
+            _tabs(p),
             if (_error != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: Text(
-                  _error!,
-                  style: TextStyle(fontSize: 12, color: p.wrong, height: 1.5),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: p.wrong,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _busy ? null : _search,
+                      child: const Text('重试', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
                 ),
               ),
             Expanded(
@@ -148,18 +188,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
                       ),
                     )
                   : _paper == null
-                  ? ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                      children: <Widget>[
-                        if (_results.isNotEmpty)
-                          Text(
-                            '找到 ${_results.length} 篇，选一篇看精读',
-                            style: TextStyle(fontSize: 11.5, color: p.muted),
-                          ),
-                        const SizedBox(height: 8),
-                        for (final PaperMeta m in _results) _resultCard(p, m),
-                      ],
-                    )
+                  ? _listView(p)
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       children: <Widget>[_detail(p)],
@@ -171,11 +200,58 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
     );
   }
 
+  Widget _tabs(ModulePalette p) {
+    Widget tab(String label, int v) {
+      final bool on = _tab == v;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = v),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              color: on ? p.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: on
+                  ? <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                color: on ? p.ink : p.muted,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: p.surfaceAlt,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(children: <Widget>[tab('精读', 0), tab('原文', 1)]),
+      ),
+    );
+  }
+
   Widget _searchBar(ModulePalette p) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('输入要求，检索开放获取论文', style: TextStyle(fontSize: 11.5, color: p.muted)),
+        Text('论文/文章，越具体越准', style: TextStyle(fontSize: 11.5, color: p.muted)),
         const SizedBox(height: 6),
         TextField(
           controller: _q,
@@ -220,7 +296,36 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
     );
   }
 
-  Widget _resultCard(ModulePalette p, PaperMeta m) {
+  Widget _listView(ModulePalette p) {
+    if (_results.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            '输入一句需求，点搜索。\n「精读」先看结构和结论，「原文」直接读全文。',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.7, color: p.muted),
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      children: <Widget>[
+        Text(
+          _tab == 0
+              ? '找到 ${_results.length} 篇，点一篇看精读'
+              : '找到 ${_results.length} 篇，点一篇读原文',
+          style: TextStyle(fontSize: 11.5, color: p.muted),
+        ),
+        const SizedBox(height: 8),
+        for (int i = 0; i < _results.length; i++) _card(p, _results[i], i),
+      ],
+    );
+  }
+
+  Widget _card(ModulePalette p, PaperMeta m, int i) {
+    final String zh = i < _zh.length ? _zh[i] : '';
     return GestureDetector(
       onTap: _busy ? null : () => _open(m),
       child: Container(
@@ -246,23 +351,46 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              m.authorsLine,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, color: p.muted),
-            ),
-            const SizedBox(height: 4),
-            Text(m.shortMeta, style: TextStyle(fontSize: 11, color: p.muted)),
-            if (m.abstract.isNotEmpty) ...<Widget>[
+            if (zh.isNotEmpty) ...<Widget>[
+              Text(
+                zh,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.55,
+                  color: p.ink.withValues(alpha: 0.85),
+                ),
+              ),
               const SizedBox(height: 6),
+            ] else ...<Widget>[
               Text(
                 m.abstract,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11.5, height: 1.5, color: p.muted),
               ),
+              const SizedBox(height: 6),
             ],
+            Text(
+              '${m.authorsLine} · ${m.shortMeta}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: p.muted),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: <Widget>[
+                Icon(
+                  _tab == 0 ? Icons.auto_awesome : Icons.menu_book_outlined,
+                  size: 13,
+                  color: p.blue,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _tab == 0 ? '看精读' : '读原文',
+                  style: TextStyle(fontSize: 11, color: p.blue),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -272,7 +400,6 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
   Widget _detail(ModulePalette p) {
     final PaperMeta m = _paper!;
     final Map<String, dynamic> d = _data!;
-    final List<Map<String, String>> terms = _terms();
 
     Widget section(String title, List<String> items) {
       if (items.isEmpty) return const SizedBox.shrink();
@@ -296,7 +423,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Padding(
-                    padding: const EdgeInsets.only(top: 5, right: 6),
+                    padding: const EdgeInsets.only(top: 6, right: 6),
                     child: Container(
                       width: 4,
                       height: 4,
@@ -326,7 +453,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         Row(
           children: <Widget>[
             TextButton.icon(
@@ -339,20 +466,17 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _markdown(m, d)));
-                AppToast.show(context, 'Markdown 已复制');
-              },
-              icon: const Icon(Icons.copy, size: 15),
-              label: const Text('复制全文'),
+              onPressed: () => Navigator.of(context).pop(m),
+              icon: const Icon(Icons.menu_book_outlined, size: 15),
+              label: const Text('读原文'),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           m.title,
           style: TextStyle(
-            fontSize: 19,
+            fontSize: 18,
             height: 1.35,
             fontWeight: FontWeight.w600,
             color: p.ink,
@@ -406,7 +530,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
         section('研究问题', _list('questions')),
         section('方法', _list('methods')),
         section('主要结果', _list('findings')),
-        if (terms.isNotEmpty) ...<Widget>[
+        if (_terms().isNotEmpty) ...<Widget>[
           const SizedBox(height: 18),
           Text(
             '核心术语',
@@ -417,7 +541,7 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
             ),
           ),
           const SizedBox(height: 6),
-          for (final Map<String, String> t in terms)
+          for (final Map<String, String> t in _terms())
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: RichText(
@@ -439,53 +563,17 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
         ],
         section('可抄句型', _list('sentences')),
         section('对我的启示', _list('takeaways')),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).pop(m),
+            icon: const Icon(Icons.menu_book_outlined, size: 17),
+            label: const Text('读原文'),
+          ),
+        ),
       ],
     );
-  }
-
-  String _markdown(PaperMeta m, Map<String, dynamic> d) {
-    final StringBuffer b = StringBuffer()
-      ..writeln('# ${m.title}')
-      ..writeln()
-      ..writeln('- 作者：${m.authorsLine}')
-      ..writeln('- 期刊：${m.journal}')
-      ..writeln('- 日期：${m.date}')
-      ..writeln('- DOI：${m.doi}')
-      ..writeln('- 链接：${m.url}')
-      ..writeln()
-      ..writeln('## 概括')
-      ..writeln(d['summary'] ?? '')
-      ..writeln()
-      ..writeln('## 摘要译文')
-      ..writeln(d['abstract_zh'] ?? '');
-
-    void sec(String title, List<String> items) {
-      if (items.isEmpty) return;
-      b
-        ..writeln()
-        ..writeln('## $title');
-      for (final String s in items) {
-        b.writeln('- $s');
-      }
-    }
-
-    sec('研究问题', _list('questions'));
-    sec('方法', _list('methods'));
-    sec('主要结果', _list('findings'));
-    final List<Map<String, String>> terms = _terms();
-    if (terms.isNotEmpty) {
-      b
-        ..writeln()
-        ..writeln('## 核心术语');
-      for (final Map<String, String> t in terms) {
-        b.writeln('- **${t['en']}**：${t['zh']}');
-      }
-    }
-    sec('可抄句型', _list('sentences'));
-    sec('对我的启示', _list('takeaways'));
-    b
-      ..writeln('---')
-      ..writeln('由 dash 论文精读生成');
-    return b.toString();
   }
 }
