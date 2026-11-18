@@ -117,75 +117,93 @@ class _PaperReadingPageState extends State<PaperReadingPage> {
     return Scaffold(
       backgroundColor: p.canvas,
       appBar: AppBar(title: const Text('论文精读')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        children: <Widget>[
-          _searchBar(p),
-          if (_error != null) ...<Widget>[
-            const SizedBox(height: 10),
-            Text(
-              _error!,
-              style: TextStyle(fontSize: 12, color: p.wrong, height: 1.5),
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _searchBar(p),
             ),
-          ],
-          if (_busy) ...<Widget>[
-            const SizedBox(height: 28),
-            Center(
-              child: Column(
-                children: <Widget>[
-                  const CircularProgressIndicator(strokeWidth: 2),
-                  const SizedBox(height: 10),
-                  Text(_stage, style: TextStyle(fontSize: 12, color: p.muted)),
-                ],
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: Text(
+                  _error!,
+                  style: TextStyle(fontSize: 12, color: p.wrong, height: 1.5),
+                ),
               ),
+            Expanded(
+              child: _busy
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const CircularProgressIndicator(strokeWidth: 2),
+                          const SizedBox(height: 10),
+                          Text(
+                            _stage,
+                            style: TextStyle(fontSize: 12, color: p.muted),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _paper == null
+                  ? ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                      children: <Widget>[
+                        if (_results.isNotEmpty)
+                          Text(
+                            '找到 ${_results.length} 篇，选一篇看精读',
+                            style: TextStyle(fontSize: 11.5, color: p.muted),
+                          ),
+                        const SizedBox(height: 8),
+                        for (final PaperMeta m in _results) _resultCard(p, m),
+                      ],
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      children: <Widget>[_detail(p)],
+                    ),
             ),
           ],
-          if (!_busy && _paper == null && _results.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 14),
-            Text(
-              '找到 ${_results.length} 篇，选一篇看精读',
-              style: TextStyle(fontSize: 11.5, color: p.muted),
-            ),
-            const SizedBox(height: 8),
-            for (final PaperMeta m in _results) _resultCard(p, m),
-          ],
-          if (!_busy && _data != null && _paper != null) _detail(p),
-        ],
+        ),
       ),
     );
   }
 
   Widget _searchBar(ModulePalette p) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Expanded(
-          child: TextField(
-            controller: _q,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(),
-            style: const TextStyle(fontSize: 13.5),
-            decoration: InputDecoration(
-              hintText: '例如：英语学习投入 的实证研究',
-              hintStyle: TextStyle(fontSize: 12.5, color: p.muted),
-              filled: true,
-              fillColor: p.surface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: p.line),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: p.line),
-              ),
+        Text('输入要求，检索开放获取论文', style: TextStyle(fontSize: 11.5, color: p.muted)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _q,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+          style: const TextStyle(fontSize: 13.5),
+          decoration: InputDecoration(
+            hintText: '例如：英语学习投入 的实证研究',
+            hintStyle: TextStyle(fontSize: 12.5, color: p.muted),
+            filled: true,
+            fillColor: p.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: p.line),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: p.line),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(height: 8),
         SizedBox(
+          width: double.infinity,
           height: 44,
           child: FilledButton(
             onPressed: _busy ? null : _search,
