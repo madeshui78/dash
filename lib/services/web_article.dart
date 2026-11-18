@@ -10,7 +10,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import '../models/paper.dart';
 import 'ai_service.dart';
+import 'paper_service.dart';
 
 class WebArticle {
   final String title;
@@ -75,6 +77,21 @@ class WebArticleService {
     ).hasMatch(q);
 
     if (academic) {
+      // 先走 OpenAlex：按相关性排序、只取开放获取，比 arXiv 的「最新一条」准
+      try {
+        final List<PaperMeta> list = await PaperService.search(q);
+        for (final PaperMeta paper in list.take(3)) {
+          final String text = await PaperService.fetchText(paper);
+          if (text.length > 600) {
+            return WebArticle(
+              title: paper.title,
+              text: _wrap(_limit(text, 4000)),
+              source: paper.url,
+            );
+          }
+        }
+      } catch (_) {}
+
       final WebArticle? a = await _fromArxiv(en, avoidTitles: avoidTitles);
       if (a != null) return a;
     }

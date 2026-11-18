@@ -17,6 +17,7 @@ import 'pages/essay_notes_page.dart';
 import 'pages/essay_page.dart';
 import 'pages/import_page.dart';
 import 'pages/key_gate.dart';
+import 'pages/paper_reading_page.dart';
 import 'pages/review_page.dart';
 import 'pages/sections_page.dart';
 import 'pages/settings_page.dart';
@@ -501,6 +502,17 @@ class _AppDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).pop();
                     onOpenPage(StatsPage(refreshTick: refreshTick), '统计');
+                  },
+                ),
+                _DrawerRow(
+                  icon: Icons.science_outlined,
+                  label: '论文精读',
+                  color: p.blue,
+                  fx: TapFx.slideRight,
+                  divider: true,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPush(const PaperReadingPage());
                   },
                 ),
                 _DrawerRow(
