@@ -22,7 +22,7 @@ class PaperService {
     Duration timeout = const Duration(seconds: 25),
   }) async {
     Object? last;
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
       try {
         final http.Response r = await http
             .get(uri, headers: <String, String>{'User-Agent': _ua})
@@ -32,9 +32,8 @@ class PaperService {
       } catch (e) {
         last = e;
       }
-      if (i == 0) {
-        await Future<void>.delayed(const Duration(milliseconds: 900));
-      }
+      // 第一次失败多半是冷启动/代理还没热，退避后再试
+      await Future<void>.delayed(Duration(milliseconds: i == 0 ? 700 : 1800));
     }
     throw last ?? Exception('网络请求失败');
   }
@@ -328,20 +327,25 @@ class PaperService {
   }
 
   static Future<String> _englishQuery(String q) async {
-    try {
-      final AiConfig cfg = await AiService.loadConfig();
-      final String out = await AiService.chat(cfg, <ChatMessage>[
-        ChatMessage(
-          role: 'user',
-          content:
-              '把下面的论文需求转成一组英文学术检索词，'
-              '保留主题、对象、方法等关键限定，只输出检索词：$q',
-        ),
-      ], systemPrompt: '你负责把中文论文需求转成精准的英文学术检索词。');
-      final String s = out.replaceAll(RegExp(r'[\n"]'), ' ').trim();
-      return s.isEmpty ? q : s;
-    } catch (_) {
-      return q;
+    for (int i = 0; i < 2; i++) {
+      try {
+        final AiConfig cfg = await AiService.loadConfig();
+        final String out = await AiService.chat(cfg, <ChatMessage>[
+          ChatMessage(
+            role: 'user',
+            content:
+                '把下面的论文需求转成一组英文学术检索词，'
+                '保留主题、对象、方法等关键限定，只输出检索词：$q',
+          ),
+        ], systemPrompt: '你负责把中文论文需求转成精准的英文学术检索词。');
+        final String s = out.replaceAll(RegExp(r'[\n"]'), ' ').trim();
+        if (s.isNotEmpty && !RegExp(r'[\u4e00-\u9fa5]').hasMatch(s)) {
+          return s;
+        }
+      } catch (_) {}
+      // 第一次可能配置还没热起来，稍等再翻一次
+      await Future<void>.delayed(const Duration(milliseconds: 600));
     }
+    return q;
   }
 }

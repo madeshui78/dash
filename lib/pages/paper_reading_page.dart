@@ -61,27 +61,43 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       _paper = null;
       _data = null;
     });
-    try {
-      final List<PaperMeta> list = await PaperService.search(q);
-      if (!mounted) return;
-      setState(() {
-        _results = list;
-        _busy = false;
-        _stage = '';
-        if (list.isEmpty) _error = '没有找到开放获取的论文，换个说法试试';
-      });
-      if (list.isNotEmpty) {
-        final List<String> zh = await PaperService.summaries(list);
-        if (!mounted) return;
-        setState(() => _zh = zh);
+
+    List<PaperMeta>? list;
+    Object? lastError;
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        list = await PaperService.search(q);
+        break;
+      } catch (e) {
+        lastError = e;
+        if (attempt == 0) {
+          if (!mounted) return;
+          setState(() => _stage = '网络不稳，正在重试…');
+          await Future<void>.delayed(const Duration(milliseconds: 1200));
+        }
       }
-    } catch (e) {
-      if (!mounted) return;
+    }
+
+    if (!mounted) return;
+    if (list == null) {
       setState(() {
         _busy = false;
         _stage = '';
-        _error = '$e';
+        _error = '检索失败：$lastError';
       });
+      return;
+    }
+
+    setState(() {
+      _results = list!;
+      _busy = false;
+      _stage = '';
+      if (list.isEmpty) _error = '没有找到开放获取的论文，换个说法试试';
+    });
+    if (list.isNotEmpty) {
+      final List<String> zh = await PaperService.summaries(list);
+      if (!mounted) return;
+      setState(() => _zh = zh);
     }
   }
 
