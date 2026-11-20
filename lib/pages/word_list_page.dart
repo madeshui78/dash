@@ -28,6 +28,7 @@ import 'import_page.dart';
 import 'loop_session_page.dart';
 import 'quick_quiz_page.dart';
 import 'study_session_page.dart';
+import 'word_explain_page.dart';
 
 class WordListPage extends StatefulWidget {
   /// 切 Tab / 换赛道 / 导入完成时自增，页面重新拉数据
@@ -120,16 +121,19 @@ class _WordListPageState extends State<WordListPage> {
         print('[wordlist] $msg');
       }
     }
+
     log('load start, track=$track');
 
     // 今天这批还是空的、词库里又有没抽过的词，就自动抽一批。
     // 加完新词回到这里时「可抽数量」变了，会再抽一次，新词直接就能练，
     // 不用先手动点「抽 N 个」。
-    final int drawableNow =
-        await DatabaseHelper.instance.countDrawable(track: track);
+    final int drawableNow = await DatabaseHelper.instance.countDrawable(
+      track: track,
+    );
     log('countDrawable=$drawableNow');
-    List<Word> todayNow =
-        await DatabaseHelper.instance.getTodayDraw(track: track);
+    List<Word> todayNow = await DatabaseHelper.instance.getTodayDraw(
+      track: track,
+    );
     log('todayDraw=${todayNow.length}');
     if (todayNow.isEmpty &&
         drawableNow > 0 &&
@@ -160,27 +164,31 @@ class _WordListPageState extends State<WordListPage> {
     log('letters=${letters.length}');
 
     final List<Word> today = todayNow;
-    final int drawable =
-        await DatabaseHelper.instance.countDrawable(track: track);
+    final int drawable = await DatabaseHelper.instance.countDrawable(
+      track: track,
+    );
     final int dailyCount = await StudySettings.dailyCount();
 
     // 到期的旧词数。以前这个数只在复习页和统计页里出现，首页从来不告诉你
     // 今天有多少词该复习——于是你只看见"今天抽的新词"，手一滑就抽多了。
-    final List<Word> due =
-        await DatabaseHelper.instance.getDueWords(track: track, limit: 500);
+    final List<Word> due = await DatabaseHelper.instance.getDueWords(
+      track: track,
+      limit: 500,
+    );
 
     // 抽过但没学完的（可能是前天抽的）。这批词以前系统里没人认：
     // 抽词池只按 draw_date 认今天，"能不能再抽"又是 NOT IN (整张抽词池)，
     // 于是它们既不在今天这批、也永远抽不到。这里单独捞出来给个入口。
     // 今天这批不算——它已经在今日卡片里了，别重复显示。
-    final Set<int> todayIds =
-        todayNow.map((Word w) => w.id!).toSet();
+    final Set<int> todayIds = todayNow.map((Word w) => w.id!).toSet();
     final List<Word> unfinished =
         (await DatabaseHelper.instance.getUnfinishedWords(track: track))
             .where((Word w) => !todayIds.contains(w.id))
             .toList();
-    log('load done: words=${words.length} today=${today.length} '
-        'drawable=$drawable due=${due.length} unfinished=${unfinished.length}');
+    log(
+      'load done: words=${words.length} today=${today.length} '
+      'drawable=$drawable due=${due.length} unfinished=${unfinished.length}',
+    );
 
     return _ViewData(
       words: words,
@@ -215,10 +223,7 @@ class _WordListPageState extends State<WordListPage> {
           controller: input,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: '输入数量',
-            suffixText: '个',
-          ),
+          decoration: const InputDecoration(hintText: '输入数量', suffixText: '个'),
         ),
         actions: <Widget>[
           TextButton(
@@ -278,8 +283,9 @@ class _WordListPageState extends State<WordListPage> {
     final String track = TrackStore.current.value;
     await DatabaseHelper.instance.clearTodayDraw(track: track);
     await StudySettings.markClearedToday();
-    final int drawableNow =
-        await DatabaseHelper.instance.countDrawable(track: track);
+    final int drawableNow = await DatabaseHelper.instance.countDrawable(
+      track: track,
+    );
     _autoDrawnAt[track] = drawableNow;
     if (!mounted) return;
     _reload();
@@ -308,7 +314,8 @@ class _WordListPageState extends State<WordListPage> {
   /// 词本身还在词库里，以后还能再抽到。
   Future<void> _giveUpUnfinished(_ViewData data) async {
     final int n = data.unfinished.length;
-    final bool go = await showDialog<bool>(
+    final bool go =
+        await showDialog<bool>(
           context: context,
           builder: (BuildContext ctx) => AlertDialog(
             title: const Text('放弃这批？'),
@@ -327,7 +334,9 @@ class _WordListPageState extends State<WordListPage> {
         ) ??
         false;
     if (!go) return;
-    await DatabaseHelper.instance.clearUnfinished(track: TrackStore.current.value);
+    await DatabaseHelper.instance.clearUnfinished(
+      track: TrackStore.current.value,
+    );
     if (mounted) _reload();
   }
 
@@ -356,7 +365,8 @@ class _WordListPageState extends State<WordListPage> {
     if (_selected.isEmpty) return;
     final int n = _selected.length;
     final String target = _moveTarget;
-    final bool go = await showDialog<bool>(
+    final bool go =
+        await showDialog<bool>(
           context: context,
           builder: (BuildContext ctx) => AlertDialog(
             title: const Text('确认移动'),
@@ -386,10 +396,7 @@ class _WordListPageState extends State<WordListPage> {
       _selected.clear();
     });
     _reload();
-    AppToast.show(
-      context,
-      '已移动 $moved 个词到「${TrackStore.labelOf(target)}」',
-    );
+    AppToast.show(context, '已移动 $moved 个词到「${TrackStore.labelOf(target)}」');
   }
 
   Future<void> _delete(Word word) async {
@@ -410,6 +417,7 @@ class _WordListPageState extends State<WordListPage> {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
+        _buildAiLookup(),
         _buildSearchBar(),
         if (_selectMode) _buildSelectBar(),
         Expanded(
@@ -418,8 +426,10 @@ class _WordListPageState extends State<WordListPage> {
             builder: (BuildContext context, AsyncSnapshot<_ViewData> snap) {
               if (kDebugMode) {
                 // ignore: avoid_print
-                print('[wordlist] builder: state=${snap.connectionState} '
-                    'hasData=${snap.hasData} hasError=${snap.hasError}');
+                print(
+                  '[wordlist] builder: state=${snap.connectionState} '
+                  'hasData=${snap.hasData} hasError=${snap.hasError}',
+                );
               }
               if (snap.connectionState == ConnectionState.waiting &&
                   !snap.hasData) {
@@ -432,8 +442,10 @@ class _WordListPageState extends State<WordListPage> {
                     children: <Widget>[
                       const CircularProgressIndicator(),
                       const SizedBox(height: 12),
-                      Text('正在加载单词本…',
-                          style: TextStyle(fontSize: 13, color: cs0.outline)),
+                      Text(
+                        '正在加载单词本…',
+                        style: TextStyle(fontSize: 13, color: cs0.outline),
+                      ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         onPressed: _reload,
@@ -473,9 +485,10 @@ class _WordListPageState extends State<WordListPage> {
                     children: <Widget>[
                       const CircularProgressIndicator(),
                       const SizedBox(height: 12),
-                      Text('正在加载单词本…',
-                          style: TextStyle(
-                              fontSize: 13, color: cs.outline)),
+                      Text(
+                        '正在加载单词本…',
+                        style: TextStyle(fontSize: 13, color: cs.outline),
+                      ),
                     ],
                   ),
                 );
@@ -483,7 +496,8 @@ class _WordListPageState extends State<WordListPage> {
               final _ViewData data = snap.data!;
               // 整本词表默认收起，只留一个按键——进来先看见今天要背的，
               // 不会被 3000 个词糊一脸。点按键才展开下面那一长列。
-              final bool listOpen = _listOpen ||
+              final bool listOpen =
+                  _listOpen ||
                   _selectMode ||
                   _keyword.isNotEmpty ||
                   _prefix.isNotEmpty;
@@ -492,7 +506,8 @@ class _WordListPageState extends State<WordListPage> {
               final int headCount = listOpen ? 3 : 2;
               final bool showEmpty = listOpen && data.words.isEmpty;
               final int itemCount =
-                  headCount + (showEmpty ? 1 : (listOpen ? data.words.length : 0));
+                  headCount +
+                  (showEmpty ? 1 : (listOpen ? data.words.length : 0));
 
               return RefreshIndicator(
                 onRefresh: () async => _reload(),
@@ -515,14 +530,17 @@ class _WordListPageState extends State<WordListPage> {
                             onDraw: () => _drawMore(data.dailyCount),
                             onImport: () => Navigator.of(context).push(
                               SmoothRoute<Object?>(
-                                page: ImportPage(refreshTick: widget.refreshTick),
+                                page: ImportPage(
+                                  refreshTick: widget.refreshTick,
+                                ),
                               ),
                             ),
                             onReview: () async {
                               await Navigator.of(context).push(
                                 SmoothRoute<Object?>(
                                   page: ReviewPage(
-                                      refreshTick: widget.refreshTick),
+                                    refreshTick: widget.refreshTick,
+                                  ),
                                 ),
                               );
                               if (mounted) _reload();
@@ -571,8 +589,7 @@ class _WordListPageState extends State<WordListPage> {
                             UnfinishedCard(
                               words: data.unfinished,
                               onContinue: () => _openSession(data.unfinished),
-                              onQuiz: () =>
-                                  _openQuiz(data.unfinished, '没学完这批'),
+                              onQuiz: () => _openQuiz(data.unfinished, '没学完这批'),
                               onGiveUp: () => _giveUpUnfinished(data),
                             ),
                         ],
@@ -643,6 +660,46 @@ class _WordListPageState extends State<WordListPage> {
 
   // ---------------- 控件 ----------------
 
+  /// 顶部 AI 查词入口：不挤占原来的词表搜索
+  Widget _buildAiLookup() {
+    final ModulePalette p = ModulePalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (BuildContext _) =>
+                  WordExplainPage(initialQuery: _keyword.trim()),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: p.blue.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: p.blue.withValues(alpha: 0.16)),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.auto_awesome, size: 16, color: p.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI 查词 · 释义、例句、搭配',
+                  style: TextStyle(fontSize: 12.5, color: p.blue),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: p.blue),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchBar() {
     final ModulePalette p = ModulePalette.of(context);
     return Padding(
@@ -656,17 +713,15 @@ class _WordListPageState extends State<WordListPage> {
               decoration: InputDecoration(
                 hintText: '搜单词或释义',
                 hintStyle: TextStyle(fontSize: 13, color: p.muted),
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: p.muted,
-                ),
+                prefixIcon: Icon(Icons.search, size: 20, color: p.muted),
                 prefixIconConstraints: const BoxConstraints(minWidth: 42),
                 filled: true,
                 fillColor: p.surface,
                 isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 13,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: p.line),
@@ -709,10 +764,7 @@ class _WordListPageState extends State<WordListPage> {
                   _selected.clear();
                 });
               },
-              icon: Icon(
-                _selectMode ? Icons.close : Icons.checklist,
-                size: 18,
-              ),
+              icon: Icon(_selectMode ? Icons.close : Icons.checklist, size: 18),
               label: Text(
                 _selectMode ? '取消' : '多选',
                 style: const TextStyle(fontSize: 12),
@@ -759,15 +811,20 @@ class _WordListPageState extends State<WordListPage> {
               decoration: const InputDecoration(
                 isDense: true,
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
               ),
               items: TrackStore.tracks
                   .where((Track t) => t.id != TrackStore.current.value)
                   .map(
                     (Track t) => DropdownMenuItem<String>(
                       value: t.id,
-                      child: Text('移到「${t.label}」', overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        '移到「${t.label}」',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   )
                   .toList(),
@@ -930,7 +987,6 @@ class _WordListPageState extends State<WordListPage> {
     }
     return out;
   }
-
 }
 
 /// 一屏要用的数据，一次查齐
@@ -1021,7 +1077,8 @@ class _WordTileState extends State<_WordTile> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
-    final bool hasExtra = (word.phonetic != null && word.phonetic!.isNotEmpty) ||
+    final bool hasExtra =
+        (word.phonetic != null && word.phonetic!.isNotEmpty) ||
         (word.example != null && word.example!.isNotEmpty) ||
         (word.tag != null && word.tag!.isNotEmpty);
 
@@ -1085,12 +1142,17 @@ class _WordTileState extends State<_WordTile> {
                       ),
                       const SizedBox(width: 6),
                       if (word.mastered)
-                        Icon(Icons.check_circle,
-                            size: 15, color: Colors.green.shade600)
+                        Icon(
+                          Icons.check_circle,
+                          size: 15,
+                          color: Colors.green.shade600,
+                        )
                       else if (word.wrong > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(4),
@@ -1163,12 +1225,16 @@ class _WordTileState extends State<_WordTile> {
         Row(
           children: <Widget>[
             Icon(Icons.check, size: 13, color: Colors.green.shade600),
-            Text(' ${word.correct}',
-                style: TextStyle(fontSize: 11, color: cs.outline)),
+            Text(
+              ' ${word.correct}',
+              style: TextStyle(fontSize: 11, color: cs.outline),
+            ),
             const SizedBox(width: 10),
             Icon(Icons.close, size: 13, color: Colors.red.shade600),
-            Text(' ${word.wrong}',
-                style: TextStyle(fontSize: 11, color: cs.outline)),
+            Text(
+              ' ${word.wrong}',
+              style: TextStyle(fontSize: 11, color: cs.outline),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1231,8 +1297,7 @@ class _WordTileState extends State<_WordTile> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     '移到哪个分区',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

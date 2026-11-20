@@ -54,14 +54,12 @@ class AiConfig {
   final String deepseekKey;
   final String deepseekModel;
 
-  const AiConfig({
-    required this.deepseekKey,
-    required this.deepseekModel,
-  });
+  const AiConfig({required this.deepseekKey, required this.deepseekModel});
 
   /// 当前在用的模型名，界面上显示用
   String get modelName => deepseekModel;
 }
+
 /// 对话里的一条消息。role 只有 'user' / 'assistant' 两种。
 /// id 和 createdAt 是落库之后才有的（存在 chat_messages 表里，杀掉 App 也在）。
 class ChatMessage {
@@ -107,7 +105,8 @@ class AiService {
   /// 词典角色设定：让模型老老实实只输出 JSON。
   /// 注意：DeepSeek 开了 response_format=json_object 时，提示词里必须出现
   /// **小写** json 字样，否则直接返回 400——大写 JSON 不算，踩过这个坑。
-  static const String _systemPrompt = '你是一部英汉词典。无论用户说什么，'
+  static const String _systemPrompt =
+      '你是一部英汉词典。无论用户说什么，'
       '都只输出一个 json 对象（小写的 json），不要输出任何解释性文字或多余内容。';
 
   static const Duration _timeout = Duration(seconds: 60);
@@ -158,9 +157,7 @@ class AiService {
     } on SocketException catch (e) {
       throw Exception('网络连不上（${e.message}）。检查手机网络');
     } on HandshakeException {
-      throw Exception(
-        'HTTPS 握手失败：当前网络可能拦截了 api.deepseek.com，换个网络（关掉代理/VPN）再试',
-      );
+      throw Exception('HTTPS 握手失败：当前网络可能拦截了 api.deepseek.com，换个网络（关掉代理/VPN）再试');
     } on http.ClientException catch (e) {
       throw Exception('网络请求失败：${e.message}');
     } on FormatException {
@@ -188,7 +185,8 @@ class AiService {
     AiConfig cfg,
     String word,
   ) async {
-    final String prompt = '为英文单词 "$word" 生成词典条目，严格按此 json 格式输出：'
+    final String prompt =
+        '为英文单词 "$word" 生成词典条目，严格按此 json 格式输出：'
         '{"phonetic":"音标，形如 /xx/","zh":"简短中文释义",'
         '"example":"一个简单常用的英文例句"}';
 
@@ -211,8 +209,7 @@ class AiService {
       throw Exception('还没填 DeepSeek 的 API Key，去设置页填一下');
     }
     if (!key.startsWith('sk-')) {
-      throw Exception(
-          'Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
+      throw Exception('Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
     }
 
     final http.Response response = await http
@@ -247,7 +244,8 @@ class AiService {
     final List<dynamic> choices = data['choices'] as List<dynamic>? ?? [];
     if (choices.isEmpty) throw Exception('云端返回内容为空');
     final Map<String, dynamic> message =
-        choices.first['message'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        choices.first['message'] as Map<String, dynamic>? ??
+        <String, dynamic>{};
     final String text = (message['content'] as String? ?? '').trim();
     if (text.isEmpty) throw Exception('云端返回了空内容');
     return text;
@@ -265,7 +263,12 @@ class AiService {
     bool jsonMode = true,
   }) async {
     return _completeDeepSeek(
-        cfg, systemPrompt, userPrompt, maxTokens, jsonMode);
+      cfg,
+      systemPrompt,
+      userPrompt,
+      maxTokens,
+      jsonMode,
+    );
   }
 
   static Future<String> _completeDeepSeek(
@@ -280,8 +283,7 @@ class AiService {
       throw Exception('还没填 DeepSeek 的 API Key，去设置页填一下');
     }
     if (!key.startsWith('sk-')) {
-      throw Exception(
-          'Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
+      throw Exception('Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
     }
 
     final http.Response response = await http
@@ -315,7 +317,8 @@ class AiService {
     final List<dynamic> choices = data['choices'] as List<dynamic>? ?? [];
     if (choices.isEmpty) throw Exception('云端返回内容为空');
     final Map<String, dynamic> message =
-        choices.first['message'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        choices.first['message'] as Map<String, dynamic>? ??
+        <String, dynamic>{};
     return (message['content'] as String? ?? '').trim();
   }
 
@@ -334,7 +337,8 @@ class AiService {
     if (words.isEmpty) return const <WordEntry>[];
 
     final String context = await loadUserContext();
-    final String prompt = '为下面这批英文单词各生成一条词典条目。\n'
+    final String prompt =
+        '为下面这批英文单词各生成一条词典条目。\n'
         '严格按 json 数组输出，每个元素形如：'
         '{"en":"单词原文","phonetic":"/音标/","zh":"简短中文释义",'
         '"example":"一个简单常用的英文例句",'
@@ -367,7 +371,8 @@ class AiService {
     List<String> words,
   ) async {
     if (words.isEmpty) return <String, String>{};
-    final String prompt = '给下面每个英文单词一条简短中文释义。\n'
+    final String prompt =
+        '给下面每个英文单词一条简短中文释义。\n'
         '严格输出 JSON 数组，每个元素形如：{"en":"单词原文","zh":"中文，12 字以内"}\n'
         '不要音标、不要例句、不要词根、不要解释。单词列表：\n'
         '${words.join('\n')}';
@@ -375,12 +380,8 @@ class AiService {
     final String raw = await _guard<String>(() {
       return run(
         cfg,
-        (AiConfig c) => _complete(
-          c,
-          '你是一部紧凑的英汉词典，只给最短的中文释义。',
-          prompt,
-          maxTokens: 1600,
-        ),
+        (AiConfig c) =>
+            _complete(c, '你是一部紧凑的英汉词典，只给最短的中文释义。', prompt, maxTokens: 1600),
       );
     });
 
@@ -411,11 +412,9 @@ class AiService {
   }
 
   /// 错词复盘：输入已经拼好的错词清单，返回结构化 JSON 文本
-  static Future<String> digestWrongWords(
-    AiConfig cfg,
-    String payload,
-  ) async {
-    final String prompt = '下面是一批需要复盘的英语错词和短语，'
+  static Future<String> digestWrongWords(AiConfig cfg, String payload) async {
+    final String prompt =
+        '下面是一批需要复盘的英语错词和短语，'
         '有的来自作文标记（带原句），有的来自做题（带错题次数）。\n'
         '请整理成学习复盘，严格输出 JSON，不要 markdown，不要解释：\n'
         '{"groups":[{"title":"组名","words":["词1"],"tip":"一句话"}],'
@@ -443,7 +442,8 @@ class AiService {
     AiConfig cfg,
     String text,
   ) async {
-    final String prompt = '把下面这段英语逐句翻译成中文。\n'
+    final String prompt =
+        '把下面这段英语逐句翻译成中文。\n'
         '严格输出 JSON 数组，不要 markdown，不要解释：\n'
         '[{"en":"原句","zh":"中文译文"}]\n'
         '一句一条，按原文顺序，不要合并句子。\n\n$text';
@@ -451,12 +451,8 @@ class AiService {
     final String raw = await _guard<String>(() {
       return run(
         cfg,
-        (AiConfig c) => _complete(
-          c,
-          '你是一名英语翻译，译文自然准确，严格输出 JSON。',
-          prompt,
-          maxTokens: 2400,
-        ),
+        (AiConfig c) =>
+            _complete(c, '你是一名英语翻译，译文自然准确，严格输出 JSON。', prompt, maxTokens: 2400),
       );
     });
 
@@ -501,8 +497,8 @@ class AiService {
     final List<dynamic> list = decoded is List
         ? decoded
         : (decoded is Map && decoded['words'] is List
-            ? decoded['words'] as List<dynamic>
-            : <dynamic>[]);
+              ? decoded['words'] as List<dynamic>
+              : <dynamic>[]);
 
     final Map<String, WordEntry> byEn = <String, WordEntry>{};
     for (final Object? item in list) {
@@ -520,14 +516,9 @@ class AiService {
 
     return words
         .map(
-          (String w) => byEn[w.toLowerCase()] ??
-              WordEntry(
-                en: w,
-                phonetic: '',
-                zh: '',
-                example: '',
-                root: '',
-              ),
+          (String w) =>
+              byEn[w.toLowerCase()] ??
+              WordEntry(en: w, phonetic: '', zh: '', example: '', root: ''),
         )
         .toList();
   }
@@ -543,7 +534,8 @@ class AiService {
     final String dump = jsonEncode(
       sample.take(12).map((List<String> r) => r).toList(),
     );
-    final String prompt = '下面是一个文件的前几行，每行是一个数组（数组的第 0 项'
+    final String prompt =
+        '下面是一个文件的前几行，每行是一个数组（数组的第 0 项'
         '是这一行的第 1 列，以此类推）。\n'
         '判断它是不是一张单词表，如果是，指出：\n'
         'is_word_list：是否单词表（布尔）\n'
@@ -555,12 +547,8 @@ class AiService {
     final String raw = await _guard<String>(() {
       return run(
         cfg,
-        (AiConfig c) => _complete(
-          c,
-          '你负责判断表格结构，只输出 json。',
-          prompt,
-          maxTokens: 200,
-        ),
+        (AiConfig c) =>
+            _complete(c, '你负责判断表格结构，只输出 json。', prompt, maxTokens: 200),
       );
     });
 
@@ -590,7 +578,8 @@ class AiService {
 
   /// 长难句分析：拆主谓宾、点出从句和生词，回一段中文讲解。
   static Future<String> analyzeSentence(AiConfig cfg, String sentence) async {
-    final String prompt = '用中文拆解这个英文句子：$sentence\n'
+    final String prompt =
+        '用中文拆解这个英文句子：$sentence\n'
         '按这四块讲，别写客套话：\n'
         '1. 句子主干（主谓宾）\n'
         '2. 从句 / 修饰成分分别修饰什么\n'
@@ -613,24 +602,18 @@ class AiService {
   }
 
   /// 给一个单词造贴合用户背景的例句，返回若干条
-  static Future<List<String>> makeExamples(
-    AiConfig cfg,
-    String word,
-  ) async {
+  static Future<List<String>> makeExamples(AiConfig cfg, String word) async {
     final String context = await loadUserContext();
-    final String prompt = '为英文单词 "$word" 造 3 个英文例句。\n'
+    final String prompt =
+        '为英文单词 "$word" 造 3 个英文例句。\n'
         '要求：句子简短好懂（不超过 15 个词），场景贴合这个人的背景：$context。\n'
         '严格按 json 数组输出，形如 ["句子1","句子2","句子3"]，不要解释。';
 
     final String raw = await _guard<String>(() {
       return run(
         cfg,
-        (AiConfig c) => _complete(
-          c,
-          '你负责造贴合学习者背景的英文例句，只输出 json。',
-          prompt,
-          maxTokens: 600,
-        ),
+        (AiConfig c) =>
+            _complete(c, '你负责造贴合学习者背景的英文例句，只输出 json。', prompt, maxTokens: 600),
       );
     });
 
@@ -657,8 +640,7 @@ class AiService {
   static const String defaultUserContext = '不尽长江滚滚来';
 
   static Future<String> loadUserContext() async {
-    final String? v =
-        await DatabaseHelper.instance.getSetting('user_context');
+    final String? v = await DatabaseHelper.instance.getSetting('user_context');
     final String s = (v ?? '').trim();
     return s.isEmpty ? defaultUserContext : s;
   }
@@ -701,8 +683,7 @@ class AiService {
       throw Exception('还没填 DeepSeek 的 API Key，去设置页填一下');
     }
     if (!key.startsWith('sk-')) {
-      throw Exception(
-          'Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
+      throw Exception('Key 格式不对：DeepSeek 的 Key 以 sk- 开头，检查一下是不是复制少了');
     }
 
     final http.Response response = await http
@@ -739,7 +720,8 @@ class AiService {
     final List<dynamic> choices = data['choices'] as List<dynamic>? ?? [];
     if (choices.isEmpty) throw Exception('云端返回内容为空');
     final Map<String, dynamic> message =
-        choices.first['message'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        choices.first['message'] as Map<String, dynamic>? ??
+        <String, dynamic>{};
     return (message['content'] as String? ?? '').trim();
   }
 
@@ -815,22 +797,19 @@ class AiService {
     AiConfig cfg,
     String word,
   ) async {
-    final String raw = await chat(
-      cfg,
-      <ChatMessage>[
-        ChatMessage(
-          role: 'user',
-          content: '给英语单词 "$word" 做一张学习卡片。\n'
-              '只输出 JSON，不要 markdown 代码块，不要解释：\n'
-              '{"root":"词根词缀拆解，中文，80 字以内；没有明显词根就说由什么构成",'
-              '"pos":"词性，如 conj. / v. / n.",'
-              '"collocations":["常见搭配（中文）","...","..."],'
-              '"examples":[{"en":"例句","zh":"译文"},{"en":"例句","zh":"译文"}]}\n'
-              '搭配 3 条，例句 2 条，贴近考试场景。',
-        ),
-      ],
-      systemPrompt: '你是英语词汇老师，输出严格合法的 JSON。',
-    );
+    final String raw = await chat(cfg, <ChatMessage>[
+      ChatMessage(
+        role: 'user',
+        content:
+            '给英语单词 "$word" 做一张学习卡片。\n'
+            '只输出 JSON，不要 markdown 代码块，不要解释：\n'
+            '{"root":"词根词缀拆解，中文，80 字以内；没有明显词根就说由什么构成",'
+            '"pos":"词性，如 conj. / v. / n.",'
+            '"collocations":["常见搭配（中文）","...","..."],'
+            '"examples":[{"en":"例句","zh":"译文"},{"en":"例句","zh":"译文"}]}\n'
+            '搭配 3 条，例句 2 条，贴近考试场景。',
+      ),
+    ], systemPrompt: '你是英语词汇老师，输出严格合法的 JSON。');
     String s = raw.trim();
     s = s.replaceAll(RegExp(r'^```[a-zA-Z]*'), '').replaceAll('```', '');
     final int a = s.indexOf('{');
@@ -841,5 +820,47 @@ class AiService {
       if (data is Map<String, dynamic>) return data;
     } catch (_) {}
     return null;
+  }
+
+  /// 单词页的「AI 查词」：按词典卡片的粒度返回结构化内容。
+  static Future<Map<String, dynamic>> explainWord(
+    AiConfig cfg,
+    String query,
+  ) async {
+    final String q = query.trim();
+    if (q.isEmpty) return <String, dynamic>{};
+
+    final String raw = await _guard<String>(() {
+      return run(
+        cfg,
+        (AiConfig c) => _complete(
+          c,
+          '你是一部面向中国学习者的英汉词典，释义准确，例句自然，不编造专业术语。',
+          '解释这个英文词/短语（也可能是句子，句子就讲结构和意思）：$q\n'
+              '严格按下面的 json 输出，不要代码块、不要多余文字：\n'
+              '{"word":"词条原文","phonetic":"/音标/，没有就空字符串",'
+              '"senses":[{"pos":"n./v./adj./phr. 等","zh":"中文释义",'
+              '"en":"英文释义，一句话","example":"英文例句",'
+              '"example_zh":"例句中文"}],'
+              '"forms":["词形变化，如复数/过去式"],'
+              '"synonyms":[{"en":"近义词","zh":"中文"}],'
+              '"collocations":["常用搭配或短语"],'
+              '"note":"易错点/语感提示，一两句话"}',
+          maxTokens: 1600,
+          jsonMode: true,
+        ),
+      );
+    });
+
+    String s = raw.trim();
+    s = s.replaceAll(RegExp(r'^```[a-zA-Z]*'), '').replaceAll('```', '').trim();
+    final int start = s.indexOf('{');
+    final int end = s.lastIndexOf('}');
+    if (start >= 0 && end > start) s = s.substring(start, end + 1);
+    try {
+      final dynamic data = jsonDecode(s);
+      if (data is Map<String, dynamic>) return data;
+    } catch (_) {}
+    return <String, dynamic>{'word': q, 'note': raw};
   }
 }
