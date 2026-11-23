@@ -292,6 +292,47 @@ class _WordListPageState extends State<WordListPage> {
     AppToast.show(context, '已清空今天这批');
   }
 
+  /// 不常用、或带破坏性的动作收到这里
+  void _openMore(_ViewData data) {
+    final ModulePalette p = ModulePalette.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: Icon(Icons.add_circle_outline, color: p.word),
+              title: const Text('多抽几个词'),
+              subtitle: Text(
+                '按每日数量再加一批，现在是 ${data.dailyCount} 个',
+                style: TextStyle(fontSize: 11.5, color: p.muted),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _drawMore(data.dailyCount);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_sweep_outlined, color: p.wrong),
+              title: Text('清空今天这批', style: TextStyle(color: p.wrong)),
+              subtitle: Text(
+                '词库不受影响，随时能再抽',
+                style: TextStyle(fontSize: 11.5, color: p.muted),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _clearToday();
+              },
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 开快刷自测：一题一词、立刻判对错、随时能停
   Future<void> _openQuiz(List<Word> pool, String title) async {
     if (pool.isEmpty) {
@@ -514,6 +555,7 @@ class _WordListPageState extends State<WordListPage> {
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                   itemCount: itemCount,
                   itemBuilder: (BuildContext context, int i) {
+                    final ModulePalette p = ModulePalette.of(context);
                     if (i == 0) {
                       // 四张卡都搬到 widgets/home_cards.dart 去了，
                       // 这里只负责把数据和动作递过去
@@ -548,37 +590,43 @@ class _WordListPageState extends State<WordListPage> {
                           const SizedBox(height: 10),
                           if (data.today.isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Wrap(
-                                spacing: 2,
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Row(
                                 children: <Widget>[
-                                  TextButton(
+                                  TextButton.icon(
                                     onPressed: _toggleFlow,
-                                    child: Text(
-                                      _loop ? '切成四步' : '切成小循环',
+                                    icon: Icon(
+                                      _loop ? Icons.call_split : Icons.repeat,
+                                      size: 15,
+                                    ),
+                                    label: Text(
+                                      _loop ? '换成四步' : '换成小循环',
                                       style: const TextStyle(fontSize: 12),
                                     ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => _drawMore(data.dailyCount),
-                                    child: const Text(
-                                      '加抽',
-                                      style: TextStyle(fontSize: 12),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
                                     ),
                                   ),
-                                  TextButton(
+                                  TextButton.icon(
                                     onPressed: () =>
                                         _openQuiz(data.today, '今日这批'),
-                                    child: const Text(
+                                    icon: const Icon(Icons.bolt, size: 15),
+                                    label: const Text(
                                       '快刷',
                                       style: TextStyle(fontSize: 12),
                                     ),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: _clearToday,
-                                    child: const Text(
-                                      '清空今日',
-                                      style: TextStyle(fontSize: 12),
+                                  const Spacer(),
+                                  IconButton(
+                                    tooltip: '更多',
+                                    onPressed: () => _openMore(data),
+                                    icon: Icon(
+                                      Icons.more_horiz,
+                                      size: 20,
+                                      color: p.muted,
                                     ),
                                   ),
                                 ],
