@@ -48,6 +48,10 @@ class _WrongWordPageState extends State<WrongWordPage> {
   late Future<_Data> _future;
   bool _submitting = false;
 
+  /// 0 = 标记词，1 = 错题。默认落在错题，每天要清的是这里
+  int _tab = 1;
+  final Set<String> _openMarks = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -63,13 +67,13 @@ class _WrongWordPageState extends State<WrongWordPage> {
 
   Future<_Data> _load() async {
     final String track = TrackStore.current.value;
-    final List<EssayMarkHit> marks =
-        await DatabaseHelper.instance.getEssayMarkHits(track: track);
-    final List<Word> all =
-        await DatabaseHelper.instance.getWrongWords(track: track);
+    final List<EssayMarkHit> marks = await DatabaseHelper.instance
+        .getEssayMarkHits(track: track);
+    final List<Word> all = await DatabaseHelper.instance.getWrongWords(
+      track: track,
+    );
     // 作文带进来的词已经在上面单独列了，这里不重复
-    final List<Word> words =
-        all.where((Word w) => w.tag != '作文').toList();
+    final List<Word> words = all.where((Word w) => w.tag != '作文').toList();
     return _Data(marks, words);
   }
 
@@ -160,8 +164,9 @@ class _WrongWordPageState extends State<WrongWordPage> {
   Future<void> _submitToday() async {
     setState(() => _submitting = true);
     try {
-      final DigestTask? task =
-          await DigestQueue.buildToday(TrackStore.current.value);
+      final DigestTask? task = await DigestQueue.buildToday(
+        TrackStore.current.value,
+      );
       if (!mounted) return;
       if (task == null) {
         AppToast.show(context, '今天还没有新的错词');
@@ -193,108 +198,188 @@ class _WrongWordPageState extends State<WrongWordPage> {
           );
         }
 
-        final List<Object> items = <Object>[
-          _Header(data),
-          if (data.marks.isNotEmpty) const _Section('作文标记'),
-          ...data.marks,
-          if (data.words.isNotEmpty) const _Section('错题'),
-          ...data.words,
-        ];
+        final bool showMarks = _tab == 0;
+        final int count = showMarks ? data.marks.length : data.words.length;
 
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-          itemCount: items.length,
-          itemBuilder: (BuildContext context, int i) {
-            final Object item = items[i];
-            if (item is _Header) {
-              return _header(item.data, p);
-            }
-            if (item is _Section) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(8, 18, 8, 6),
-                child: Text(
-                  item.title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                    color: p.muted,
-                  ),
-                ),
-              );
-            }
-            if (item is EssayMarkHit) {
-              return _markTile(item, p);
-            }
-            final Word w = item as Word;
-            return _wordTile(w, p);
-          },
+        return Column(
+          children: <Widget>[
+            _filterBar(data, p),
+            Expanded(
+              child: count == 0
+                  ? Center(
+                      child: Text(
+                        showMarks ? '还没有标记词' : '还没有错题',
+                        style: TextStyle(fontSize: 12.5, color: p.muted),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                      itemCount: count,
+                      itemBuilder: (BuildContext context, int i) {
+                        if (showMarks) return _markTile(data.marks[i], p);
+                        return _wordTile(data.words[i], p);
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _header(_Data data, ModulePalette p) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 10, 4, 2),
-      child: Row(
-        children: <Widget>[
-          Text(
-            '${data.marks.length + data.words.length} 条',
-            style: TextStyle(fontSize: 12, color: p.muted),
-          ),
-          const Spacer(),
-          if (data.words.isNotEmpty) ...<Widget>[
-            MotionButton(
-              label: '复测',
-              icon: Icons.bolt,
-              kind: MotionKind.pulse,
-              filled: false,
-              onPressed: () async {
-                final Object? changed =
-                    await Navigator.of(context).push<Object?>(
-                  SmoothRoute<Object?>(
-                    page: QuickQuizPage(
-                      pool: data.words,
-                      title: '错词复测',
-                      count:
-                          data.words.length > 20 ? 20 : data.words.length,
-                    ),
+  /// 顶部两个横向分区：标记词 / 错题，点哪个下面筛哪个
+  Widget _filterBar(_Data data, ModulePalette p) {
+    Widget zone({
+      required String label,
+      required int count,
+      required IconData icon,
+      required Color color,
+      required int value,
+    }) {
+      final bool on = _tab == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: on ? color.withValues(alpha: 0.08) : p.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: on ? color.withValues(alpha: 0.45) : p.line,
+                width: on ? 1.2 : 1,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, size: 17, color: on ? color : p.muted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: on ? color : p.muted,
+                          fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '$count',
+                        style: TextStyle(
+                          fontSize: 19,
+                          height: 1.2,
+                          fontWeight: FontWeight.w600,
+                          color: on ? p.ink : p.muted,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-                if (changed == true && mounted) _reload();
-              },
+                ),
+              ],
             ),
-            const SizedBox(width: 4),
-          ],
-          FxIconButton(
-            icon: Icons.ios_share,
-            fx: TapFx.lift,
-            tooltip: '导出',
-            size: 18,
-            color: p.amber,
-            onPressed: () => showExportSheet(
-              context,
-              initial: ExportScope.wrong,
-            ),
+          ),
+        ),
+      );
+    }
+
+    final int shown = _tab == 0 ? data.marks.length : data.words.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+      child: Column(
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              zone(
+                label: '标记词',
+                count: data.marks.length,
+                icon: Icons.bookmark_border,
+                color: p.wrong,
+                value: 0,
+              ),
+              const SizedBox(width: 8),
+              zone(
+                label: '错题',
+                count: data.words.length,
+                icon: Icons.error_outline,
+                color: p.blue,
+                value: 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: <Widget>[
+              Text(
+                '$shown 条',
+                style: TextStyle(fontSize: 11.5, color: p.muted),
+              ),
+              const Spacer(),
+              if (_tab == 1 && data.words.isNotEmpty) ...<Widget>[
+                MotionButton(
+                  label: '复测',
+                  icon: Icons.bolt,
+                  kind: MotionKind.pulse,
+                  filled: false,
+                  onPressed: () async {
+                    final Object? changed = await Navigator.of(context)
+                        .push<Object?>(
+                          SmoothRoute<Object?>(
+                            page: QuickQuizPage(
+                              pool: data.words,
+                              title: '错词复测',
+                              count: data.words.length > 20
+                                  ? 20
+                                  : data.words.length,
+                            ),
+                          ),
+                        );
+                    if (changed == true && mounted) _reload();
+                  },
+                ),
+                const SizedBox(width: 4),
+              ],
+              FxIconButton(
+                icon: Icons.ios_share,
+                fx: TapFx.lift,
+                tooltip: '导出',
+                size: 18,
+                color: p.amber,
+                onPressed: () =>
+                    showExportSheet(context, initial: ExportScope.wrong),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// 作文里标红的一条：词 + 出处 + 原句
+  /// 作文里标红的一条：默认收成一行，点开才看原句
   Widget _markTile(EssayMarkHit h, ModulePalette p) {
+    final String key = '${h.mark.word}@${h.mark.createdAt}';
+    final bool open = _openMarks.contains(key);
+
     return InkWell(
-      onTap: () => _openEssay(h),
-      borderRadius: BorderRadius.circular(10),
+      onTap: () => setState(() {
+        if (open) {
+          _openMarks.remove(key);
+        } else {
+          _openMarks.add(key);
+        }
+      }),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.only(top: 2),
               child: Icon(Icons.bookmark, size: 16, color: p.wrong),
             ),
             const SizedBox(width: 10),
@@ -302,35 +387,77 @@ class _WrongWordPageState extends State<WrongWordPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    h.mark.word,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: p.wrong,
-                    ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          h.mark.word,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: p.wrong,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        open ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                        color: p.muted,
+                      ),
+                    ],
                   ),
-                  if (h.mark.sentence.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 3),
-                    Text(
-                      h.mark.sentence,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.4,
-                        color: p.ink.withValues(alpha: 0.75),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${h.essayDate} · ${h.essayTitle}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10.5, color: p.muted),
+                  ),
+                  if (open) ...<Widget>[
+                    if (h.mark.sentence.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                        decoration: BoxDecoration(
+                          color: p.surfaceAlt,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border(
+                            left: BorderSide(color: p.wrong, width: 2.5),
+                          ),
+                        ),
+                        child: Text(
+                          h.mark.sentence,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.55,
+                            color: p.ink.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _openEssay(h),
+                        icon: const Icon(Icons.north_east, size: 14),
+                        label: const Text(
+                          '去原文',
+                          style: TextStyle(fontSize: 11.5),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          minimumSize: const Size(0, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 4),
-                  Text(
-                    '${h.essayDate} · ${h.essayTitle}',
-                    style: TextStyle(fontSize: 10, color: p.muted),
-                  ),
                 ],
               ),
             ),
+            const SizedBox(width: 4),
             FxIconButton(
               icon: Icons.close,
               fx: TapFx.close,
@@ -384,22 +511,9 @@ class _WrongWordPageState extends State<WrongWordPage> {
         ),
         trailing: TextButton(
           onPressed: () => _clearWrong(w),
-          child: Text(
-            '已掌握',
-            style: TextStyle(fontSize: 12, color: p.muted),
-          ),
+          child: Text('已掌握', style: TextStyle(fontSize: 12, color: p.muted)),
         ),
       ),
     );
   }
-}
-
-class _Header {
-  final _Data data;
-  const _Header(this.data);
-}
-
-class _Section {
-  final String title;
-  const _Section(this.title);
 }
