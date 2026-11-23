@@ -18,6 +18,7 @@ import '../widgets/empty_view.dart';
 import '../widgets/export_sheet.dart';
 import '../widgets/fx.dart';
 import '../widgets/motion_button.dart';
+import '../widgets/sliding_segmented.dart';
 import '../widgets/smooth_route.dart';
 import '../widgets/word_detail_sheet.dart';
 import 'quick_quiz_page.dart';
@@ -240,7 +241,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
 
   /// 顶部两个横向分区：标记词 / 错题，点哪个下面筛哪个
   Widget _filterBar(_Data data, ModulePalette p) {
-    Widget zone({
+    Widget segContent({
       required String label,
       required int count,
       required IconData icon,
@@ -248,52 +249,29 @@ class _WrongWordPageState extends State<WrongWordPage> {
       required int value,
     }) {
       final bool on = _tab == value;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() => _tab = value),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: on ? color.withValues(alpha: 0.08) : p.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: on ? color.withValues(alpha: 0.45) : p.line,
-                width: on ? 1.2 : 1,
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Icon(icon, size: 17, color: on ? color : p.muted),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: on ? color : p.muted,
-                          fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        '$count',
-                        style: TextStyle(
-                          fontSize: 19,
-                          height: 1.2,
-                          fontWeight: FontWeight.w600,
-                          color: on ? p.ink : p.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 16, color: on ? color : p.muted),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: on ? color : p.muted,
+              fontWeight: on ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
-        ),
+          const SizedBox(width: 4),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: on ? p.ink : p.muted,
+            ),
+          ),
+        ],
       );
     }
 
@@ -303,17 +281,18 @@ class _WrongWordPageState extends State<WrongWordPage> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
       child: Column(
         children: <Widget>[
-          Row(
+          SlidingSegmented(
+            index: _tab,
+            height: 52,
             children: <Widget>[
-              zone(
+              segContent(
                 label: '标记词',
                 count: data.marks.length,
                 icon: Icons.bookmark_border,
                 color: p.wrong,
                 value: 0,
               ),
-              const SizedBox(width: 8),
-              zone(
+              segContent(
                 label: '错题',
                 count: data.words.length,
                 icon: Icons.error_outline,
@@ -321,6 +300,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
                 value: 1,
               ),
             ],
+            onChanged: (int i) => setState(() => _tab = i),
           ),
           const SizedBox(height: 4),
           Row(

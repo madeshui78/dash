@@ -13,6 +13,7 @@ import '../services/paper_service.dart';
 import '../theme/module_palette.dart';
 import '../theme/ui.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/sliding_segmented.dart';
 
 class PaperSearchPage extends StatefulWidget {
   final String initialQuery;
@@ -273,52 +274,30 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
   }
 
   Widget _tabs(ModulePalette p) {
-    Widget tab(String label, int v) {
+    Widget label(String text, int v) {
       final bool on = _tab == v;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() {
-            _tab = v;
-            _paper = null;
-            _data = null;
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            decoration: BoxDecoration(
-              color: on ? p.surface : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              boxShadow: on
-                  ? <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-                color: on ? p.ink : p.muted,
-              ),
-            ),
-          ),
+      return Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+          color: on ? p.ink : p.muted,
         ),
       );
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: p.surfaceAlt,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Row(children: <Widget>[tab('精读', 0), tab('原文', 1)]),
+      child: SlidingSegmented(
+        index: _tab,
+        height: 36,
+        children: <Widget>[label('精读', 0), label('原文', 1)],
+        onChanged: (int i) => setState(() {
+          _tab = i;
+          _paper = null;
+          _data = null;
+        }),
       ),
     );
   }

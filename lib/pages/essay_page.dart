@@ -28,6 +28,7 @@ import '../theme/module_palette.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/fx.dart';
 import '../widgets/motion_button.dart';
+import '../widgets/sliding_segmented.dart';
 import 'paper_reading_page.dart';
 
 class EssayPage extends StatefulWidget {
@@ -1891,29 +1892,13 @@ class _ComposeSheetState extends State<_ComposeSheet> {
 
     Widget tab(String label, int v) {
       final bool on = _mode == v;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() => _mode = v),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            decoration: BoxDecoration(
-              color: on ? p.essay.withValues(alpha: 0.12) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: on ? p.essay.withValues(alpha: 0.35) : p.line,
-              ),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-                color: on ? p.essay : p.muted,
-              ),
-            ),
-          ),
+      return Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+          color: on ? p.essay : p.muted,
         ),
       );
     }
@@ -1929,12 +1914,11 @@ class _ComposeSheetState extends State<_ComposeSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              tab('描述生成', 0),
-              const SizedBox(width: 8),
-              tab('联网搜索', 1),
-            ],
+          SlidingSegmented(
+            index: _mode,
+            height: 38,
+            children: <Widget>[tab('描述生成', 0), tab('联网搜索', 1)],
+            onChanged: (int i) => setState(() => _mode = i),
           ),
           const SizedBox(height: 14),
           TextField(
