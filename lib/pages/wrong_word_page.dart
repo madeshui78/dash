@@ -212,13 +212,24 @@ class _WrongWordPageState extends State<WrongWordPage> {
                         style: TextStyle(fontSize: 12.5, color: p.muted),
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                      itemCount: count,
-                      itemBuilder: (BuildContext context, int i) {
-                        if (showMarks) return _markTile(data.marks[i], p);
-                        return _wordTile(data.words[i], p);
+                  : GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragEnd: (DragEndDetails d) {
+                        final double v = d.primaryVelocity ?? 0;
+                        if (v < -260 && _tab == 0) {
+                          setState(() => _tab = 1);
+                        } else if (v > 260 && _tab == 1) {
+                          setState(() => _tab = 0);
+                        }
                       },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                        itemCount: count,
+                        itemBuilder: (BuildContext context, int i) {
+                          if (showMarks) return _markTile(data.marks[i], p);
+                          return _wordTile(data.words[i], p);
+                        },
+                      ),
                     ),
             ),
           ],

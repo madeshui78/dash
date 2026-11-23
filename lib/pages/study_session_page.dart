@@ -25,11 +25,7 @@ class StudySessionPage extends StatefulWidget {
   /// false = 复习已掌握的词（只更新对错统计）
   final bool isDaily;
 
-  const StudySessionPage({
-    super.key,
-    required this.words,
-    this.isDaily = true,
-  });
+  const StudySessionPage({super.key, required this.words, this.isDaily = true});
 
   @override
   State<StudySessionPage> createState() => _StudySessionPageState();
@@ -55,7 +51,8 @@ class _StudySessionPageState extends State<StudySessionPage> {
   /// wordId → 这一步判定的对错
   final Map<int, bool> _results = <int, bool>{};
 
-  final Map<int, TextEditingController> _controllers = <int, TextEditingController>{};
+  final Map<int, TextEditingController> _controllers =
+      <int, TextEditingController>{};
 
   String _mode = 'list';
   bool _saving = false;
@@ -165,7 +162,9 @@ class _StudySessionPageState extends State<StudySessionPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_step >= 4 ? '学完了' : '第 ${_step + 1} 步 · ${_steps[_step]}'),
+          title: Text(
+            _step >= 4 ? '学完了' : '第 ${_step + 1} 步 · ${_steps[_step]}',
+          ),
           centerTitle: true,
           elevation: 0,
           scrolledUnderElevation: 0,
@@ -186,23 +185,36 @@ class _StudySessionPageState extends State<StudySessionPage> {
             if (_step < 4) _stepDots(),
             if (_restored && _step < 4) _restoreBanner(),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (Widget child, Animation<double> anim) {
-                  final Animation<Offset> slide = Tween<Offset>(
-                    begin: const Offset(0.06, 0),
-                    end: Offset.zero,
-                  ).animate(anim);
-                  return FadeTransition(
-                    opacity: anim,
-                    child: SlideTransition(position: slide, child: child),
-                  );
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                // 只有浏览词卡的两步支持左右滑，答题步骤不乱跳
+                onHorizontalDragEnd: (DragEndDetails d) {
+                  if (_step > 1) return;
+                  final double v = d.primaryVelocity ?? 0;
+                  if (v < -220) {
+                    _next();
+                  } else if (v > 220) {
+                    _prev();
+                  }
                 },
-                child: KeyedSubtree(
-                  key: ValueKey<String>('$_step-$_browseIndex-$_cardIndex'),
-                  child: _buildBody(),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (Widget child, Animation<double> anim) {
+                    final Animation<Offset> slide = Tween<Offset>(
+                      begin: const Offset(0.06, 0),
+                      end: Offset.zero,
+                    ).animate(anim);
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<String>('$_step-$_browseIndex-$_cardIndex'),
+                    child: _buildBody(),
+                  ),
                 ),
               ),
             ),
@@ -222,8 +234,10 @@ class _StudySessionPageState extends State<StudySessionPage> {
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
         title: const Text('先歇会儿？'),
-        content: const Text('进度已经存下来了，下次点「开始学」'
-            '会回到这一步接着来。'),
+        content: const Text(
+          '进度已经存下来了，下次点「开始学」'
+          '会回到这一步接着来。',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -251,11 +265,9 @@ class _StudySessionPageState extends State<StudySessionPage> {
       // 输入框里没提交的内容也存下来，回来时原样回填
       'drafts': SessionDraft.writeTextMap(
         widget.words.asMap().map(
-              (int i, Word w) => MapEntry<int, String>(
-                w.id!,
-                _controllers[w.id!]?.text ?? '',
-              ),
-            ),
+          (int i, Word w) =>
+              MapEntry<int, String>(w.id!, _controllers[w.id!]?.text ?? ''),
+        ),
       ),
       'answers': SessionDraft.writeTextMap(_answers),
       'results': SessionDraft.writeBoolMap(_results),
@@ -375,8 +387,8 @@ class _StudySessionPageState extends State<StudySessionPage> {
                       color: i == _step
                           ? cs.primary
                           : (i < _step
-                              ? cs.primaryContainer
-                              : cs.surfaceContainerHighest),
+                                ? cs.primaryContainer
+                                : cs.surfaceContainerHighest),
                     ),
                     child: i < _step
                         ? Icon(Icons.check, size: 11, color: cs.primary)
@@ -519,7 +531,10 @@ class _StudySessionPageState extends State<StudySessionPage> {
       children: <Widget>[
         Text(
           enToZh ? '写出中文意思，写完点下面提交' : '写出英文单词，写完点下面提交',
-          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
         const SizedBox(height: 12),
         ...widget.words.map(
@@ -532,7 +547,10 @@ class _StudySessionPageState extends State<StudySessionPage> {
                   flex: 2,
                   child: Text(
                     enToZh ? w.en : (w.zh.isEmpty ? '（缺释义）' : w.zh),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -637,7 +655,10 @@ class _StudySessionPageState extends State<StudySessionPage> {
                 children: <Widget>[
                   Text(
                     enToZh ? w.en : (w.zh.isEmpty ? '（缺释义）' : w.zh),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -658,13 +679,15 @@ class _StudySessionPageState extends State<StudySessionPage> {
                       ChoiceChip(
                         label: const Text('对了'),
                         selected: ok == true,
-                        onSelected: (_) => setState(() => _results[w.id!] = true),
+                        onSelected: (_) =>
+                            setState(() => _results[w.id!] = true),
                       ),
                       const SizedBox(width: 10),
                       ChoiceChip(
                         label: const Text('错了'),
                         selected: ok == false,
-                        onSelected: (_) => setState(() => _results[w.id!] = false),
+                        onSelected: (_) =>
+                            setState(() => _results[w.id!] = false),
                       ),
                     ],
                   ),
@@ -690,9 +713,7 @@ class _StudySessionPageState extends State<StudySessionPage> {
         const SizedBox(height: 20),
         Icon(Icons.check_circle_outline, size: 56, color: cs.primary),
         const SizedBox(height: 16),
-        const Center(
-          child: Text('这批词学完了', style: TextStyle(fontSize: 18)),
-        ),
+        const Center(child: Text('这批词学完了', style: TextStyle(fontSize: 18))),
         const SizedBox(height: 20),
         Card(
           child: Padding(
@@ -725,7 +746,11 @@ class _StudySessionPageState extends State<StudySessionPage> {
           const Spacer(),
           Text(
             '$value 个',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -745,7 +770,9 @@ class _StudySessionPageState extends State<StudySessionPage> {
             onPressed: () => Navigator.of(context).pop(true),
             icon: const Icon(Icons.check),
             label: const Text('回到单词本'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
           ),
         ),
       );
@@ -779,8 +806,9 @@ class _StudySessionPageState extends State<StudySessionPage> {
         child: _saving
             ? FilledButton(
                 onPressed: null,
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
                 child: const SizedBox(
                   width: 18,
                   height: 18,
