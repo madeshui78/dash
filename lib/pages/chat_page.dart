@@ -23,6 +23,7 @@ import '../widgets/app_toast.dart';
 import '../widgets/digest_answer_card.dart';
 import '../widgets/digest_view.dart';
 import '../widgets/fx.dart';
+import 'digest_records_page.dart';
 import '../widgets/memory_graph_card.dart';
 import 'settings_page.dart';
 
@@ -85,8 +86,8 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 启动：有历史就打开最近一段，没有就停在空白新对话
   Future<void> _loadHistory() async {
-    final List<ChatSession> list =
-        await DatabaseHelper.instance.getChatSessions(kind: 'chat');
+    final List<ChatSession> list = await DatabaseHelper.instance
+        .getChatSessions(kind: 'chat');
     if (!mounted) return;
     setState(() => _sessions = list);
     if (list.isEmpty) {
@@ -97,17 +98,17 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _refreshSessions() async {
-    final List<ChatSession> list =
-        await DatabaseHelper.instance.getChatSessions(kind: 'chat');
+    final List<ChatSession> list = await DatabaseHelper.instance
+        .getChatSessions(kind: 'chat');
     if (!mounted) return;
     setState(() => _sessions = list);
   }
 
   Future<void> _openSession(int id) async {
-    final List<ChatMessage> history =
-        await DatabaseHelper.instance.getChatMessages(sessionId: id);
-    final Map<int, String> graphRows =
-        await DatabaseHelper.instance.getChatGraphsForSession(id);
+    final List<ChatMessage> history = await DatabaseHelper.instance
+        .getChatMessages(sessionId: id);
+    final Map<int, String> graphRows = await DatabaseHelper.instance
+        .getChatGraphsForSession(id);
     if (!mounted) return;
     String title = '对话';
     bool digest = false;
@@ -126,8 +127,9 @@ class _ChatPageState extends State<ChatPage> {
       for (final ChatMessage m in history) {
         final int? mid = m.id;
         if (mid == null || !m.content.startsWith(_digestPrefix)) continue;
-        final DigestResult? r =
-            DigestResult.tryParse(m.content.substring(_digestPrefix.length));
+        final DigestResult? r = DigestResult.tryParse(
+          m.content.substring(_digestPrefix.length),
+        );
         if (r == null) continue;
         results[mid] = r;
         for (int i = 0; i < r.items.length; i++) {
@@ -182,7 +184,9 @@ class _ChatPageState extends State<ChatPage> {
     // 第一句发出时才创建会话
     int? sid = _sessionId;
     if (sid == null) {
-      final String title = text.length > 18 ? '${text.substring(0, 18)}…' : text;
+      final String title = text.length > 18
+          ? '${text.substring(0, 18)}…'
+          : text;
       sid = await DatabaseHelper.instance.createChatSession(title);
       if (!mounted) return;
       setState(() {
@@ -295,22 +299,22 @@ class _ChatPageState extends State<ChatPage> {
     final List<String> out = <String>[];
     final Set<String> seen = <String>{};
 
-    final List<EssayMarkHit> marks =
-        await db.getEssayMarkHits(track: TrackStore.current.value);
+    final List<EssayMarkHit> marks = await db.getEssayMarkHits(
+      track: TrackStore.current.value,
+    );
     for (final EssayMarkHit h in marks) {
       if (h.mark.createdAt <= last) continue;
       final String w = h.mark.word.trim();
       if (w.isEmpty || !seen.add(w.toLowerCase())) continue;
       final String sent = h.mark.sentence.trim();
-      out.add(
-        sent.isEmpty ? w : '$w  ——  原句：$sent',
-      );
+      out.add(sent.isEmpty ? w : '$w  ——  原句：$sent');
       // 作文标记最多取 10 条，剩下名额留给做题错词
       if (out.length >= 10) break;
     }
 
-    final List<Word> words =
-        await db.getWrongWords(track: TrackStore.current.value);
+    final List<Word> words = await db.getWrongWords(
+      track: TrackStore.current.value,
+    );
     for (final Word w in words) {
       final int t = w.lastReview?.millisecondsSinceEpoch ?? 0;
       if (last > 0 && t <= last) continue;
@@ -491,10 +495,7 @@ class _ChatPageState extends State<ChatPage> {
         Expanded(
           child: IndexedStack(
             index: _mode,
-            children: <Widget>[
-              _buildBody(),
-              const DigestView(),
-            ],
+            children: <Widget>[_buildBody(), const DigestView()],
           ),
         ),
         if (_mode == 0) _buildInputBar(),
@@ -556,6 +557,21 @@ class _ChatPageState extends State<ChatPage> {
               onPressed: _newChat,
             ),
           ],
+          if (_mode == 1)
+            FxIconButton(
+              icon: Icons.history,
+              fx: TapFx.flipY,
+              tooltip: '复盘记录',
+              size: 19,
+              color: p.blue,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext _) => const DigestRecordsPage(),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -659,8 +675,9 @@ class _ChatPageState extends State<ChatPage> {
                   style: TextStyle(
                     fontSize: 14,
                     color: p.ink,
-                    fontWeight:
-                        s.id == _sessionId ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: s.id == _sessionId
+                        ? FontWeight.w600
+                        : FontWeight.w400,
                   ),
                 ),
                 subtitle: Text(
@@ -760,13 +777,19 @@ class _ChatPageState extends State<ChatPage> {
             color: Theme.of(context).colorScheme.outline,
           ),
           const SizedBox(height: 18),
-          ..._suggestions.take(3).map(
+          ..._suggestions
+              .take(3)
+              .map(
                 (String q) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: ActionChip(
-                      label: Text(q, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      label: Text(
+                        q,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       onPressed: () => _send(q),
                     ),
                   ),
@@ -847,10 +870,7 @@ class _ChatPageState extends State<ChatPage> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 10),
-          Text(
-            '正在整理今天的错词…',
-            style: TextStyle(fontSize: 12.5, color: p.muted),
-          ),
+          Text('正在整理今天的错词…', style: TextStyle(fontSize: 12.5, color: p.muted)),
         ],
       ),
     );
@@ -864,8 +884,7 @@ class _ChatPageState extends State<ChatPage> {
       if (r != null) {
         return DigestAnswerCard(
           result: r,
-          keyAt: (int i) =>
-              _digestKeys['$mid-$i'] ?? GlobalKey(),
+          keyAt: (int i) => _digestKeys['$mid-$i'] ?? GlobalKey(),
         );
       }
     }
@@ -878,8 +897,9 @@ class _ChatPageState extends State<ChatPage> {
     final Widget bubble = Align(
       alignment: user ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment:
-            user ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: user
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: <Widget>[
           if (!user)
             Padding(
@@ -950,10 +970,7 @@ class _ChatPageState extends State<ChatPage> {
             RegExp(r'\*\*(.+?)\*\*'),
             (Match m) => m.group(1) ?? '',
           )
-          .replaceAllMapped(
-            RegExp(r'`(.+?)`'),
-            (Match m) => m.group(1) ?? '',
-          )
+          .replaceAllMapped(RegExp(r'`(.+?)`'), (Match m) => m.group(1) ?? '')
           // Dart 不支持 (?m) 这种内联写法，多行模式要用构造参数
           .replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '')
           .replaceAll('**', '')
@@ -985,10 +1002,7 @@ class _ChatPageState extends State<ChatPage> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 8),
-            Text(
-              '思考中',
-              style: TextStyle(fontSize: 13, color: p.muted),
-            ),
+            Text('思考中', style: TextStyle(fontSize: 13, color: p.muted)),
           ],
         ),
       ),
@@ -1105,10 +1119,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
             const SizedBox(width: 8),
-            _PlaneSendButton(
-              busy: _busy,
-              onPressed: () => _send(),
-            ),
+            _PlaneSendButton(busy: _busy, onPressed: () => _send()),
           ],
         ),
       ),

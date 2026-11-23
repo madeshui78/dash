@@ -1929,15 +1929,6 @@ class _ComposeSheetState extends State<_ComposeSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            '作文',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: p.ink,
-            ),
-          ),
-          const SizedBox(height: 14),
           Row(
             children: <Widget>[
               tab('描述生成', 0),
@@ -1950,7 +1941,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             controller: _text,
             minLines: 3,
             maxLines: 6,
-            autofocus: false,
+            autofocus: true,
             style: const TextStyle(fontSize: 14, height: 1.5),
             decoration: InputDecoration(
               hintText: web

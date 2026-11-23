@@ -1,4 +1,5 @@
 // 联网搜索：一次检索，两个视角。
+import 'dart:async';
 //   精读：中文概括 + 结构化精读，读完可「读原文」
 //   原文：直接把这篇文章作为作文正文打开
 // 页面本身不落地任何文件，PDF 只在后台读取。
@@ -28,6 +29,8 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
   PaperMeta? _paper;
   Map<String, dynamic>? _data;
   bool _busy = false;
+  int _secs = 0;
+  Timer? _timer;
   String _stage = '';
   String? _error;
   int _tab = 0;
@@ -39,10 +42,15 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
     if (widget.initialQuery.trim().isNotEmpty) {
       Future<void>.microtask(_search);
     }
+    // 长操作给个秒数，避免只有一个转圈，不知道卡没卡
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_busy && mounted) setState(() => _secs++);
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _q.dispose();
     super.dispose();
   }
@@ -54,6 +62,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       return;
     }
     setState(() {
+      _secs = 0;
       _busy = true;
       _stage = '正在检索…';
       _error = null;
@@ -109,6 +118,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
     }
     setState(() {
       _paper = p;
+      _secs = 0;
       _busy = true;
       _stage = '正在下载全文…';
       _error = null;
@@ -138,6 +148,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
   /// 抓正文再返回；抓不到就留在搜索页给提示，避免作文页出现 0 词空文
   Future<void> _readOriginal(PaperMeta m) async {
     setState(() {
+      _secs = 0;
       _busy = true;
       _stage = '正在抓取原文…';
       _error = null;
@@ -240,7 +251,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
                             const CircularProgressIndicator(strokeWidth: 2),
                             const SizedBox(height: 10),
                             Text(
-                              _stage,
+                              '$_stage${_secs > 0 ? ' · ${_secs}s' : ''}',
                               style: TextStyle(fontSize: 12, color: p.muted),
                             ),
                           ],

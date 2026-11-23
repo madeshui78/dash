@@ -12,7 +12,6 @@ import 'pages/chat_page.dart';
 import 'pages/consent_gate.dart';
 import 'pages/checkin_page.dart';
 import 'pages/checkin_records_page.dart';
-import 'pages/digest_records_page.dart';
 import 'pages/essay_notes_page.dart';
 import 'pages/essay_page.dart';
 import 'pages/import_page.dart';
@@ -558,20 +557,9 @@ class _AppDrawer extends StatelessWidget {
                   label: '打卡记录',
                   color: p.wrong,
                   fx: TapFx.wave,
-                  divider: true,
                   onTap: () async {
                     Navigator.of(context).pop();
                     onPush(const CheckinRecordsPage());
-                  },
-                ),
-                _DrawerRow(
-                  icon: Icons.psychology_outlined,
-                  label: '错词记录',
-                  color: p.blue,
-                  fx: TapFx.pulse,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onPush(const DigestRecordsPage());
                   },
                 ),
               ],
