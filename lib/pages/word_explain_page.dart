@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/ai_service.dart';
+import '../services/error_text.dart';
 import '../services/tts_service.dart';
 import '../theme/module_palette.dart';
 import '../widgets/app_toast.dart';
@@ -61,7 +62,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = '$e';
+        _error = friendlyError(e);
       });
     }
   }

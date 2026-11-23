@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/paper.dart';
+import '../services/error_text.dart';
 import '../services/paper_service.dart';
 import '../theme/module_palette.dart';
 import '../widgets/app_toast.dart';
@@ -83,7 +84,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       setState(() {
         _busy = false;
         _stage = '';
-        _error = '检索失败：$lastError';
+        _error = '检索失败：${friendlyError(lastError!)}';
       });
       return;
     }
@@ -129,7 +130,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       setState(() {
         _busy = false;
         _stage = '';
-        _error = '精读失败：$e';
+        _error = '精读失败：${friendlyError(e)}';
       });
     }
   }
@@ -161,7 +162,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
       setState(() {
         _busy = false;
         _stage = '';
-        _error = '抓取失败：$e';
+        _error = '抓取失败：${friendlyError(e)}';
       });
     }
   }
@@ -186,63 +187,74 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
   @override
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
-    return Scaffold(
-      backgroundColor: p.canvas,
-      appBar: AppBar(title: const Text('联网搜索')),
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: _searchBar(p),
-            ),
-            const SizedBox(height: 8),
-            _tabs(p),
-            if (_error != null)
+    return PopScope(
+      // 在精读详情里按返回，先退回候选，而不是直接退出整个搜索
+      canPop: _paper == null,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop || _paper == null) return;
+        setState(() {
+          _paper = null;
+          _data = null;
+        });
+      },
+      child: Scaffold(
+        backgroundColor: p.canvas,
+        appBar: AppBar(title: const Text('联网搜索')),
+        body: SafeArea(
+          child: Column(
+            children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: p.wrong,
-                          height: 1.5,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: _searchBar(p),
+              ),
+              const SizedBox(height: 8),
+              _tabs(p),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: p.wrong,
+                            height: 1.5,
+                          ),
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: _busy ? null : _search,
-                      child: const Text('重试', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: _busy
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const CircularProgressIndicator(strokeWidth: 2),
-                          const SizedBox(height: 10),
-                          Text(
-                            _stage,
-                            style: TextStyle(fontSize: 12, color: p.muted),
-                          ),
-                        ],
+                      TextButton(
+                        onPressed: _busy ? null : _search,
+                        child: const Text('重试', style: TextStyle(fontSize: 12)),
                       ),
-                    )
-                  : _paper == null
-                  ? _listView(p)
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      children: <Widget>[_detail(p)],
-                    ),
-            ),
-          ],
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: _busy
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const CircularProgressIndicator(strokeWidth: 2),
+                            const SizedBox(height: 10),
+                            Text(
+                              _stage,
+                              style: TextStyle(fontSize: 12, color: p.muted),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _paper == null
+                    ? _listView(p)
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        children: <Widget>[_detail(p)],
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

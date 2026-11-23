@@ -417,7 +417,6 @@ class _WordListPageState extends State<WordListPage> {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        _buildAiLookup(),
         _buildSearchBar(),
         if (_selectMode) _buildSelectBar(),
         Expanded(
@@ -660,46 +659,6 @@ class _WordListPageState extends State<WordListPage> {
 
   // ---------------- 控件 ----------------
 
-  /// 顶部 AI 查词入口：不挤占原来的词表搜索
-  Widget _buildAiLookup() {
-    final ModulePalette p = ModulePalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (BuildContext _) =>
-                  WordExplainPage(initialQuery: _keyword.trim()),
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: p.blue.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: p.blue.withValues(alpha: 0.16)),
-          ),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.auto_awesome, size: 16, color: p.blue),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'AI 查词 · 释义、例句、搭配',
-                  style: TextStyle(fontSize: 12.5, color: p.blue),
-                ),
-              ),
-              Icon(Icons.chevron_right, size: 18, color: p.blue),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSearchBar() {
     final ModulePalette p = ModulePalette.of(context);
     return Padding(
@@ -715,6 +674,34 @@ class _WordListPageState extends State<WordListPage> {
                 hintStyle: TextStyle(fontSize: 13, color: p.muted),
                 prefixIcon: Icon(Icons.search, size: 20, color: p.muted),
                 prefixIconConstraints: const BoxConstraints(minWidth: 42),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    IconButton(
+                      tooltip: 'AI 查词',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext _) =>
+                                WordExplainPage(initialQuery: _keyword.trim()),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.auto_awesome, size: 18, color: p.blue),
+                    ),
+                    if (_keyword.isNotEmpty)
+                      IconButton(
+                        tooltip: '清空搜索',
+                        icon: Icon(Icons.close, size: 18, color: p.muted),
+                        onPressed: () {
+                          _search.clear();
+                          setState(() => _keyword = '');
+                          _reload();
+                        },
+                      ),
+                  ],
+                ),
+                suffixIconConstraints: const BoxConstraints(minWidth: 40),
                 filled: true,
                 fillColor: p.surface,
                 isDense: true,
@@ -734,17 +721,6 @@ class _WordListPageState extends State<WordListPage> {
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: p.word, width: 1.3),
                 ),
-                suffixIcon: _keyword.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: '清空搜索',
-                        icon: Icon(Icons.close, size: 18, color: p.muted),
-                        onPressed: () {
-                          _search.clear();
-                          setState(() => _keyword = '');
-                          _reload();
-                        },
-                      ),
               ),
               textInputAction: TextInputAction.search,
               onChanged: (String v) {
