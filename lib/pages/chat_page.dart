@@ -7,6 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../db/database_helper.dart';
 import '../models/chat_session.dart';
@@ -73,7 +74,11 @@ class _ChatPageState extends State<ChatPage> {
         '1. 讲解用中文，英文例句单独给出并标注难词；\n'
         '2. 讲单词要给音标、常考释义、常见搭配，例句尽量贴近考试场景；\n'
         '3. 改句子时先给修改后的版本，再逐条说明改了什么、为什么；\n'
-        '4. 回答简洁，不啰嗦，不写客套话。';
+        '4. 回答简洁，不啰嗦，不写客套话；\n'
+        '5. 用 Markdown 排版：小节标题用 ###，并列内容用 - 列表，'
+        '单词和术语用 **加粗** 或 `反引号`；\n'
+        '6. 英文例句单独成行，用 > 引用块给出，下面再标注中文和难词；\n'
+        '7. 每段不超过三行，内容多就拆小节，不要堆成一大段。';
   }
 
   /// 空态时给的快捷问题，点一下直接发出去
@@ -937,15 +942,21 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 border: user ? null : Border.all(color: p.line),
               ),
-              child: Text(
-                user ? m.content : _plain(m.content),
-                style: TextStyle(
-                  fontSize: 15,
-                  height: user ? 1.5 : 1.65,
-                  letterSpacing: 0.15,
-                  color: user ? userFg : p.ink,
-                ),
-              ),
+              child: user
+                  ? Text(
+                      m.content,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        letterSpacing: 0.15,
+                        color: userFg,
+                      ),
+                    )
+                  : MarkdownBody(
+                      data: m.content,
+                      selectable: true,
+                      styleSheet: _markdownStyle(p),
+                    ),
             ),
           ),
         ],
@@ -963,6 +974,51 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   /// 模型有时还是会在正文里加 ** 和反引号，显示前统一抹掉
+  MarkdownStyleSheet _markdownStyle(ModulePalette p) {
+    final TextStyle body = TextStyle(
+      fontSize: 14.5,
+      height: 1.7,
+      color: p.ink,
+      letterSpacing: 0.1,
+    );
+    return MarkdownStyleSheet(
+      p: body,
+      pPadding: const EdgeInsets.only(bottom: 6),
+      h1: body.copyWith(fontSize: 18, fontWeight: FontWeight.w600),
+      h2: body.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+      h3: body.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+      h1Padding: const EdgeInsets.only(top: 6, bottom: 4),
+      h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
+      h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      strong: body.copyWith(fontWeight: FontWeight.w600),
+      em: body.copyWith(fontStyle: FontStyle.italic),
+      listBullet: body,
+      listIndent: 18,
+      blockquote: body.copyWith(color: p.ink.withValues(alpha: 0.85)),
+      blockquotePadding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+      blockquoteDecoration: BoxDecoration(
+        color: p.surfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border(left: BorderSide(color: p.blue, width: 2.5)),
+      ),
+      code: TextStyle(
+        fontSize: 13,
+        height: 1.5,
+        fontFamily: 'monospace',
+        color: p.blue,
+        backgroundColor: p.surfaceAlt,
+      ),
+      codeblockPadding: const EdgeInsets.all(10),
+      codeblockDecoration: BoxDecoration(
+        color: p.surfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(top: BorderSide(color: p.line)),
+      ),
+    );
+  }
+
   String _plain(String s) {
     try {
       String t = s
