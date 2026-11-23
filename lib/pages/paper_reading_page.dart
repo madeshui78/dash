@@ -11,6 +11,7 @@ import '../models/paper.dart';
 import '../services/error_text.dart';
 import '../services/paper_service.dart';
 import '../theme/module_palette.dart';
+import '../theme/ui.dart';
 import '../widgets/app_toast.dart';
 
 class PaperSearchPage extends StatefulWidget {
@@ -355,7 +356,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
-          height: 44,
+          height: UiSize.button,
           child: FilledButton(
             onPressed: _busy ? null : _search,
             style: FilledButton.styleFrom(
@@ -641,7 +642,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
-          height: 44,
+          height: UiSize.button,
           child: OutlinedButton.icon(
             onPressed: () => _readOriginal(m),
             icon: const Icon(Icons.menu_book_outlined, size: 17),

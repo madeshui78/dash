@@ -7,6 +7,7 @@ import '../services/ai_service.dart';
 import '../services/error_text.dart';
 import '../services/tts_service.dart';
 import '../theme/module_palette.dart';
+import '../theme/ui.dart';
 import '../widgets/app_toast.dart';
 
 class WordExplainPage extends StatefulWidget {
@@ -143,7 +144,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                   ),
                   const SizedBox(width: 8),
                   SizedBox(
-                    height: 44,
+                    height: UiSize.button,
                     child: FilledButton(
                       onPressed: _busy ? null : _lookup,
                       style: FilledButton.styleFrom(

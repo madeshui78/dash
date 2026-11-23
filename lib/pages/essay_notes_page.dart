@@ -8,6 +8,7 @@ import '../models/essay.dart';
 import '../models/word_note.dart';
 import '../services/essay_focus.dart';
 import '../theme/module_palette.dart';
+import '../theme/ui.dart';
 import '../widgets/app_toast.dart';
 
 class EssayNotesPage extends StatefulWidget {

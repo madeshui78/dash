@@ -710,15 +710,15 @@ class _WordListPageState extends State<WordListPage> {
                   vertical: 13,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: p.line),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: p.line),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: p.word, width: 1.3),
                 ),
               ),

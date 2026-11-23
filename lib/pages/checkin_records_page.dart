@@ -101,7 +101,7 @@ class _CheckinRecordsPageState extends State<CheckinRecordsPage> {
       padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: p.line),
       ),
       child: Row(
@@ -127,7 +127,7 @@ class _CheckinRecordsPageState extends State<CheckinRecordsPage> {
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: p.line),
       ),
       child: Column(
@@ -214,14 +214,15 @@ class _CheckinRecordsPageState extends State<CheckinRecordsPage> {
   }
 
   List<Widget> _recent(ModulePalette p) {
-    final List<String> sorted = _days.toList()..sort((String a, String b) => b.compareTo(a));
+    final List<String> sorted = _days.toList()
+      ..sort((String a, String b) => b.compareTo(a));
     final List<String> recent = sorted.take(14).toList();
 
     return <Widget>[
       Container(
         decoration: BoxDecoration(
           color: p.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: p.line),
         ),
         child: Column(
@@ -260,7 +261,15 @@ class _CheckinRecordsPageState extends State<CheckinRecordsPage> {
   String _weekLabel(String day) {
     final DateTime? d = DateTime.tryParse(day);
     if (d == null) return '';
-    const List<String> names = <String>['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const List<String> names = <String>[
+      '周一',
+      '周二',
+      '周三',
+      '周四',
+      '周五',
+      '周六',
+      '周日',
+    ];
     return names[d.weekday - 1];
   }
 }
