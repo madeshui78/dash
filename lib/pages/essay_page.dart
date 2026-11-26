@@ -74,9 +74,9 @@ class _EssayPageState extends State<EssayPage> {
   bool _marking = false;
   bool _filling = false;
 
-  /// 正文下面要不要挂中文。默认挂上，读的时候直接看到意思；
-  /// 想只看英文再关掉。
-  bool _showZh = true;
+  /// 正文下面要不要挂中文。默认不挂，读的时候先看英文；
+  /// 需要时点工具栏或右上角菜单打开，选择会记住。
+  bool _showZh = false;
 
   /// 正文字号，设置里可调
   double _fontSize = 17;
@@ -110,6 +110,27 @@ class _EssayPageState extends State<EssayPage> {
     EssayFocus.request.addListener(_onFocusRequest);
     EssayStore.fontNotifier.addListener(_onFontSize);
     _load();
+    _loadZhPref();
+  }
+
+  /// 逐词注释的开关记忆：默认关，关掉后下次进来还是关
+  Future<void> _loadZhPref() async {
+    try {
+      final String v =
+          await DatabaseHelper.instance.getSetting('essay_show_zh') ?? '0';
+      if (!mounted) return;
+      setState(() => _showZh = v == '1');
+    } catch (_) {}
+  }
+
+  Future<void> _toggleZh() async {
+    setState(() => _showZh = !_showZh);
+    try {
+      await DatabaseHelper.instance.setSetting(
+        'essay_show_zh',
+        _showZh ? '1' : '0',
+      );
+    } catch (_) {}
   }
 
   @override
@@ -1129,6 +1150,124 @@ class _EssayPageState extends State<EssayPage> {
     return out;
   }
 
+  /// 右上角「⋯」：把阅读相关的设置和动作收在一处
+  void _openReadingSheet() {
+    final ModulePalette p = ModulePalette.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheet) {
+          void changeFont(double d) {
+            final double v = (_fontSize + d).clamp(14.0, 24.0);
+            EssayStore.setFontSize(v);
+            setSheet(() {});
+          }
+
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        '阅读设置',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: p.ink,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_essay != null)
+                        Text(
+                          '${_essay!.wordCount} 词',
+                          style: TextStyle(fontSize: 11, color: p.muted),
+                        ),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.format_size, color: p.essay),
+                  title: const Text('正文字号'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: _fontSize > 14 ? () => changeFont(-1) : null,
+                        icon: const Icon(Icons.remove, size: 18),
+                        tooltip: '减小',
+                      ),
+                      SizedBox(
+                        width: 28,
+                        child: Text(
+                          '${_fontSize.round()}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _fontSize < 24 ? () => changeFont(1) : null,
+                        icon: const Icon(Icons.add, size: 18),
+                        tooltip: '加大',
+                      ),
+                    ],
+                  ),
+                ),
+                SwitchListTile(
+                  secondary: Icon(Icons.subtitles_outlined, color: p.green),
+                  title: const Text('逐词注释'),
+                  subtitle: Text(
+                    '关掉只显示英文，点词仍能查',
+                    style: TextStyle(fontSize: 11.5, color: p.muted),
+                  ),
+                  value: _showZh,
+                  onChanged: (bool v) async {
+                    await _toggleZh();
+                    setSheet(() {});
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.translate, color: p.blue),
+                  title: const Text('逐句译文'),
+                  subtitle: _pairs.isEmpty
+                      ? null
+                      : Text(
+                          '已有 ${_pairs.length} 句',
+                          style: TextStyle(fontSize: 11.5, color: p.muted),
+                        ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _showTranslationSheet();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.volume_up_outlined, color: p.chat),
+                  title: const Text('朗读全文'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    TtsService.speak(_essay?.text ?? '');
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.file_open_outlined, color: p.amber),
+                  title: const Text('导入文件'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _import();
+                  },
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showTranslationSheet() {
     final ModulePalette p = ModulePalette.of(context);
     showModalBottomSheet<void>(
@@ -1506,39 +1645,45 @@ class _EssayPageState extends State<EssayPage> {
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
-            child: InkWell(
-              onTap: _openComposeSheet,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-                decoration: BoxDecoration(
-                  color: p.essay.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: p.essay.withValues(alpha: 0.20)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.auto_awesome, size: 17, color: p.essay),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _topic == 'web'
-                            ? '联网摘录'
-                            : (_topic == 'custom'
-                                  ? 'AI 生成'
-                                  : '${EssayStore.labelOf(_topic)} · ${_prefs.words} 词'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: p.essay,
+            child: Tooltip(
+              message: '换一篇：描述生成或联网搜索',
+              child: InkWell(
+                onTap: _openComposeSheet,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.essay.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: p.essay.withValues(alpha: 0.20)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.auto_awesome, size: 17, color: p.essay),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _topic == 'web'
+                              ? '联网摘录'
+                              : (_topic == 'custom'
+                                    ? 'AI 生成'
+                                    : '${EssayStore.labelOf(_topic)} · ${_prefs.words} 词'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: p.essay,
+                          ),
                         ),
                       ),
-                    ),
-                    Icon(Icons.expand_more, size: 16, color: p.essay),
-                  ],
+                      Icon(Icons.expand_more, size: 16, color: p.essay),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1567,19 +1712,15 @@ class _EssayPageState extends State<EssayPage> {
           tooltip: '释义',
           size: 19,
           color: _showZh ? p.green : p.green.withValues(alpha: 0.60),
-          onPressed: () => setState(() => _showZh = !_showZh),
+          onPressed: _toggleZh,
         ),
-        PopupMenuButton<String>(
-          icon: Icon(Icons.more_horiz, size: 19, color: p.muted),
-          padding: EdgeInsets.zero,
-          onSelected: (String v) {
-            if (v == 'import') _import();
-            if (v == 'speak') TtsService.speak(_essay?.text ?? '');
-          },
-          itemBuilder: (BuildContext ctx) => const <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(value: 'speak', child: Text('朗读全文')),
-            PopupMenuItem<String>(value: 'import', child: Text('导入文件')),
-          ],
+        FxIconButton(
+          icon: Icons.more_horiz,
+          fx: TapFx.dots,
+          tooltip: '阅读设置',
+          size: 19,
+          color: p.muted,
+          onPressed: _openReadingSheet,
         ),
       ],
     );

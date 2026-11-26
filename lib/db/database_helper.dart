@@ -1404,12 +1404,13 @@ class DatabaseHelper {
     );
   }
 
-  /// 错词本：只取当前赛道，错得多的排前面
+  /// 错词本：只取当前赛道、未掌握的错词，错得多的排前面。
+  /// 标了「已掌握」就不该还留在待清理列表里，否则永远清不完。
   Future<List<Word>> getWrongWords({required String track}) async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query(
       tableWords,
-      where: 'track = ? AND wrong > 0',
+      where: 'track = ? AND wrong > 0 AND mastered = 0',
       whereArgs: [track],
       orderBy: 'wrong DESC, id DESC',
     );

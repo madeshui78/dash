@@ -467,7 +467,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
         onTap: () => showWordDetail(context, w),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         leading: Container(
-          width: 30,
+          width: 36,
           height: 30,
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -475,9 +475,9 @@ class _WrongWordPageState extends State<WrongWordPage> {
             borderRadius: BorderRadius.circular(9),
           ),
           child: Text(
-            '${w.wrong}',
+            '错${w.wrong}次',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               color: p.wrong,
               fontWeight: FontWeight.w600,
             ),

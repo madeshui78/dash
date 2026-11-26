@@ -197,10 +197,17 @@ class UnfinishedCard extends StatelessWidget {
           children: <Widget>[
             _CardHead(
               icon: Icons.play_circle_outline,
-              title: '${words.length} 个没学完',
+              title: '还有 ${words.length} 个没学完',
               accent: p.chat,
             ),
-            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '之前抽的，和今天这批分开算',
+                style: TextStyle(fontSize: 11, color: p.muted),
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: MotionButton(
