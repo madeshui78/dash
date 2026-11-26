@@ -1010,13 +1010,21 @@ class _ChatPageState extends State<ChatPage> {
         children: <Widget>[
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() {
-              if (open) {
-                _openTrace.remove(id);
-              } else {
-                _openTrace.add(id);
+            onTap: () {
+              setState(() {
+                if (open) {
+                  _openTrace.remove(id);
+                } else {
+                  _openTrace.add(id);
+                }
+              });
+              if (!open) {
+                // 展开后把内容顶到可见区，别被输入框挡住
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToEnd();
+                });
               }
-            }),
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
