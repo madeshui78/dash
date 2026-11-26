@@ -621,7 +621,7 @@ class _EssayPageState extends State<EssayPage> {
                   Text(
                     '批注 · $raw',
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: p.ink,
                     ),
@@ -629,7 +629,7 @@ class _EssayPageState extends State<EssayPage> {
                   const SizedBox(height: 4),
                   Text(
                     '只记在这篇文章里，之后可以在「批注本」回看。',
-                    style: TextStyle(fontSize: 11.5, color: p.muted),
+                    style: TextStyle(fontSize: 12, color: p.muted),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
@@ -854,7 +854,7 @@ class _EssayPageState extends State<EssayPage> {
                       const Text(
                         '生成条件',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1531,7 +1531,7 @@ class _EssayPageState extends State<EssayPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: p.essay,
                         ),
@@ -1750,13 +1750,13 @@ class _WordSheet extends StatelessWidget {
             ),
             if (phonetic != null) ...<Widget>[
               const SizedBox(height: 2),
-              Text(phonetic, style: TextStyle(fontSize: 15, color: p.essay)),
+              Text(phonetic, style: TextStyle(fontSize: 14, color: p.essay)),
             ],
             const SizedBox(height: 8),
             Text(
               zh.isEmpty ? '还没查到释义' : zh,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 16,
                 color: zh.isEmpty ? p.muted : p.ink,
               ),
             ),
@@ -1817,7 +1817,7 @@ class _WordSheet extends StatelessWidget {
               const SizedBox(height: 4),
               SelectableText(
                 annotation!,
-                style: TextStyle(fontSize: 13.5, height: 1.6, color: p.ink),
+                style: TextStyle(fontSize: 14, height: 1.6, color: p.ink),
               ),
             ],
             const SizedBox(height: 16),
@@ -1896,7 +1896,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
         label,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: on ? FontWeight.w600 : FontWeight.w400,
           color: on ? p.essay : p.muted,
         ),

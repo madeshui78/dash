@@ -157,7 +157,7 @@ class _CheckinRecordsPageState extends State<CheckinRecordsPage> {
                   child: Center(
                     child: Text(
                       w,
-                      style: TextStyle(fontSize: 10.5, color: p.muted),
+                      style: TextStyle(fontSize: 11, color: p.muted),
                     ),
                   ),
                 ),

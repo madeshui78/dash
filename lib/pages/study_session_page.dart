@@ -548,7 +548,7 @@ class _StudySessionPageState extends State<StudySessionPage> {
                   child: Text(
                     enToZh ? w.en : (w.zh.isEmpty ? '（缺释义）' : w.zh),
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -656,7 +656,7 @@ class _StudySessionPageState extends State<StudySessionPage> {
                   Text(
                     enToZh ? w.en : (w.zh.isEmpty ? '（缺释义）' : w.zh),
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

@@ -75,7 +75,8 @@ List<QuizQuestion> buildQuiz(
   // 默认加权：听音只占五分之一。
   // 一是考试大头是阅读（英→中）和词汇语法，二是你在图书馆/自习室，
   // 外放发音不合适——听音题做成点喇叭才响，不该占太多。
-  final List<QuizKind> allow = kinds ??
+  final List<QuizKind> allow =
+      kinds ??
       <QuizKind>[
         QuizKind.enToZh,
         QuizKind.zhToEn,
@@ -111,8 +112,14 @@ List<QuizQuestion> buildQuiz(
   for (int i = 0; i < n; i++) {
     final Word w = picks[i];
     final QuizKind kind = allow[r.nextInt(allow.length)];
-    final List<Word> distractors =
-        _pickDistractors(w, usable, byInitial, byLen, 3, r);
+    final List<Word> distractors = _pickDistractors(
+      w,
+      usable,
+      byInitial,
+      byLen,
+      3,
+      r,
+    );
 
     final List<String> options;
     final String prompt;
@@ -152,13 +159,15 @@ List<QuizQuestion> buildQuiz(
     final int answerIndex = options.indexOf(correct);
     if (answerIndex < 0) continue;
 
-    out.add(QuizQuestion(
-      word: w,
-      kind: kind,
-      prompt: prompt,
-      options: options,
-      answerIndex: answerIndex,
-    ));
+    out.add(
+      QuizQuestion(
+        word: w,
+        kind: kind,
+        prompt: prompt,
+        options: options,
+        answerIndex: answerIndex,
+      ),
+    );
   }
   return out;
 }

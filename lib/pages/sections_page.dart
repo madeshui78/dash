@@ -25,19 +25,14 @@ class _SectionsPageState extends State<SectionsPage> {
   }
 
   Future<void> _load() async {
-    final List<Map<String, Object?>> rows =
-        await DatabaseHelper.instance.getSections();
+    final List<Map<String, Object?>> rows = await DatabaseHelper.instance
+        .getSections();
     final List<_Sec> list = <_Sec>[];
     for (final Map<String, Object?> r in rows) {
       final String id = r['id'] as String;
-      final int count =
-          await DatabaseHelper.instance.countWords(track: id);
+      final int count = await DatabaseHelper.instance.countWords(track: id);
       list.add(
-        _Sec(
-          id: id,
-          name: (r['name'] as String?) ?? '分区',
-          count: count,
-        ),
+        _Sec(id: id, name: (r['name'] as String?) ?? '分区', count: count),
       );
     }
     if (!mounted) return;
@@ -176,13 +171,16 @@ class _SectionsPageState extends State<SectionsPage> {
                           color: p.blue.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.folder_outlined,
-                            size: 18, color: p.blue),
+                        child: Icon(
+                          Icons.folder_outlined,
+                          size: 18,
+                          color: p.blue,
+                        ),
                       ),
                       title: Text(
                         s.name,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: s.id == TrackStore.current.value
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -205,23 +203,26 @@ class _SectionsPageState extends State<SectionsPage> {
                               ),
                             ),
                           PopupMenuButton<String>(
-                            icon: Icon(Icons.more_horiz,
-                                size: 18, color: p.muted),
+                            icon: Icon(
+                              Icons.more_horiz,
+                              size: 18,
+                              color: p.muted,
+                            ),
                             onSelected: (String v) {
                               if (v == 'rename') _rename(s);
                               if (v == 'delete') _delete(s);
                             },
                             itemBuilder: (BuildContext ctx) =>
                                 const <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'rename',
-                                child: Text('重命名'),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Text('删除'),
-                              ),
-                            ],
+                                  PopupMenuItem<String>(
+                                    value: 'rename',
+                                    child: Text('重命名'),
+                                  ),
+                                  PopupMenuItem<String>(
+                                    value: 'delete',
+                                    child: Text('删除'),
+                                  ),
+                                ],
                           ),
                         ],
                       ),

@@ -57,15 +57,14 @@ class _DigestChatPageState extends State<DigestChatPage> {
   }
 
   Future<void> _loadSession() async {
-    final ChatSession? s =
-        await DatabaseHelper.instance.getDigestSession();
+    final ChatSession? s = await DatabaseHelper.instance.getDigestSession();
     if (!mounted) return;
     if (s == null) {
       setState(() => _loading = false);
       return;
     }
-    final List<ChatMessage> msgs =
-        await DatabaseHelper.instance.getChatMessages(sessionId: s.id);
+    final List<ChatMessage> msgs = await DatabaseHelper.instance
+        .getChatMessages(sessionId: s.id);
     if (!mounted) return;
     setState(() {
       _sid = s.id;
@@ -85,8 +84,9 @@ class _DigestChatPageState extends State<DigestChatPage> {
     for (final ChatMessage m in _messages) {
       final int? mid = m.id;
       if (mid == null || !m.content.startsWith(_prefix)) continue;
-      final DigestResult? r =
-          DigestResult.tryParse(m.content.substring(_prefix.length));
+      final DigestResult? r = DigestResult.tryParse(
+        m.content.substring(_prefix.length),
+      );
       if (r == null) continue;
       _results[mid] = r;
       for (int i = 0; i < r.items.length; i++) {
@@ -203,7 +203,7 @@ class _DigestChatPageState extends State<DigestChatPage> {
               const SizedBox(height: 10),
               Text(
                 item.meaning,
-                style: TextStyle(fontSize: 15, height: 1.5, color: p.ink),
+                style: TextStyle(fontSize: 14, height: 1.5, color: p.ink),
               ),
               if (item.memory.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 10),
@@ -222,8 +222,10 @@ class _DigestChatPageState extends State<DigestChatPage> {
   @override
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
-    final int words = _results.values
-        .fold<int>(0, (int n, DigestResult r) => n + r.items.length);
+    final int words = _results.values.fold<int>(
+      0,
+      (int n, DigestResult r) => n + r.items.length,
+    );
 
     return Scaffold(
       backgroundColor: p.canvas,
@@ -253,35 +255,34 @@ class _DigestChatPageState extends State<DigestChatPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _messages.isEmpty
-              ? _empty(p)
-              : Stack(
+          ? _empty(p)
+          : Stack(
+              children: <Widget>[
+                ListView(
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 46, 24),
                   children: <Widget>[
-                    ListView(
-                      controller: _scroll,
-                      padding: const EdgeInsets.fromLTRB(14, 12, 46, 24),
-                      children: <Widget>[
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Text(
-                              _error!,
-                              style: TextStyle(fontSize: 12, color: p.wrong),
-                            ),
-                          ),
-                        for (final ChatMessage m in _messages)
-                          _resultCard(m),
-                      ],
-                    ),
-                    if (_rail.isNotEmpty)
-                      Positioned(
-                        top: 12,
-                        bottom: 12,
-                        right: 0,
-                        width: 32,
-                        child: _DigestRail(entries: _rail, onTap: _jump),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(fontSize: 12, color: p.wrong),
+                        ),
                       ),
+                    for (final ChatMessage m in _messages) _resultCard(m),
                   ],
                 ),
+                if (_rail.isNotEmpty)
+                  Positioned(
+                    top: 12,
+                    bottom: 12,
+                    right: 0,
+                    width: 32,
+                    child: _DigestRail(entries: _rail, onTap: _jump),
+                  ),
+              ],
+            ),
     );
   }
 
@@ -305,10 +306,7 @@ class _DigestChatPageState extends State<DigestChatPage> {
           children: <Widget>[
             Icon(Icons.psychology_outlined, size: 40, color: p.blue),
             const SizedBox(height: 14),
-            Text(
-              '还没有复盘记录',
-              style: TextStyle(fontSize: 15, color: p.ink),
-            ),
+            Text('还没有复盘记录', style: TextStyle(fontSize: 14, color: p.ink)),
             const SizedBox(height: 6),
             Text(
               '去错词本点「提交今日错词」',

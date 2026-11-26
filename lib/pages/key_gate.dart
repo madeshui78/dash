@@ -40,8 +40,9 @@ class _KeyGateState extends State<KeyGate> {
   }
 
   Future<void> _load() async {
-    final String? saved =
-        await DatabaseHelper.instance.getSetting('deepseek_key');
+    final String? saved = await DatabaseHelper.instance.getSetting(
+      'deepseek_key',
+    );
     if (!mounted) return;
     setState(() => _hasKey = (saved ?? '').trim().length >= 20);
   }
@@ -116,7 +117,7 @@ class _KeyGateState extends State<KeyGate> {
               Text(
                 '先填一个 DeepSeek Key',
                 style: TextStyle(
-                  fontSize: 19,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: p.ink,
                 ),
@@ -211,7 +212,7 @@ class _KeyGateState extends State<KeyGate> {
               const SizedBox(height: 20),
               Text(
                 '进入后也可以在「设置 → DeepSeek」里随时更换 Key。',
-                style: TextStyle(fontSize: 11.5, height: 1.6, color: p.muted),
+                style: TextStyle(fontSize: 12, height: 1.6, color: p.muted),
               ),
             ],
           ),

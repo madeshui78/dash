@@ -45,9 +45,7 @@ List<EssayToken> tokenizeEssay(String text) {
     }
     String display = t.word!;
     int j = i + 1;
-    while (j < out.length &&
-        !out[j].isWord &&
-        out[j].text.trim().isNotEmpty) {
+    while (j < out.length && !out[j].isWord && out[j].text.trim().isNotEmpty) {
       display += out[j].text.trim();
       j++;
     }
@@ -122,8 +120,10 @@ List<String> lemmaCandidates(String raw) {
     if (w.endsWith('ies')) add('${w.substring(0, w.length - 3)}y');
     // boxes / goes → box / go
     if (w.endsWith('es') &&
-        (w.endsWith('ses') || w.endsWith('xes') ||
-            w.endsWith('zes') || w.endsWith('ches') ||
+        (w.endsWith('ses') ||
+            w.endsWith('xes') ||
+            w.endsWith('zes') ||
+            w.endsWith('ches') ||
             w.endsWith('shes'))) {
       add(w.substring(0, w.length - 2));
     }
@@ -146,8 +146,8 @@ List<String> lemmaCandidates(String raw) {
     if (w.endsWith('ing')) {
       final String stem = w.substring(0, w.length - 3);
       // 双写辅音的（running）先剥一个，再加 e 意义不大
-      final bool doubled = stem.length >= 2 &&
-          stem[stem.length - 1] == stem[stem.length - 2];
+      final bool doubled =
+          stem.length >= 2 && stem[stem.length - 1] == stem[stem.length - 2];
       if (doubled) add(stem.substring(0, stem.length - 1));
       add(stem);
       // make → making，反过来要补 e；但 go → going 不该补成 goe
@@ -159,8 +159,8 @@ List<String> lemmaCandidates(String raw) {
       final int cut = w.endsWith('est') ? 3 : 2;
       final String stem = w.substring(0, w.length - cut);
       if (stem.length >= 4) {
-        final bool doubled = stem.length >= 2 &&
-            stem[stem.length - 1] == stem[stem.length - 2];
+        final bool doubled =
+            stem.length >= 2 && stem[stem.length - 1] == stem[stem.length - 2];
         if (doubled) add(stem.substring(0, stem.length - 1));
         add(stem);
         if (!doubled && !_isVowel(stem[stem.length - 1])) add('${stem}e');

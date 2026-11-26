@@ -129,8 +129,13 @@ class MemoryGraphCard extends StatelessWidget {
     );
   }
 
-  List<Color> _colors(ModulePalette p) =>
-      <Color>[p.blue, p.violet, p.green, p.orange, p.amber];
+  List<Color> _colors(ModulePalette p) => <Color>[
+    p.blue,
+    p.violet,
+    p.green,
+    p.orange,
+    p.amber,
+  ];
 }
 
 class _GroupRow extends StatelessWidget {
@@ -165,9 +170,7 @@ class _GroupRow extends StatelessWidget {
                   ),
                 ),
                 if (!last)
-                  Expanded(
-                    child: Container(width: 1.5, color: p.line),
-                  ),
+                  Expanded(child: Container(width: 1.5, color: p.line)),
               ],
             ),
           ),
@@ -208,10 +211,7 @@ class _GroupRow extends StatelessWidget {
                               ),
                               child: Text(
                                 w,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: p.ink,
-                                ),
+                                style: TextStyle(fontSize: 12, color: p.ink),
                               ),
                             ),
                           )

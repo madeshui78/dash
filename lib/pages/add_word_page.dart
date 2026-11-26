@@ -81,7 +81,8 @@ class _AddWordPageState extends State<AddWordPage> {
       final String others = hitOther
           .map((String t) => '「${TrackStore.labelOf(t)}」')
           .join('、');
-      final bool goOn = await showDialog<bool>(
+      final bool goOn =
+          await showDialog<bool>(
             context: context,
             builder: (BuildContext ctx) => AlertDialog(
               title: const Text('这个词已在其他考试里'),
@@ -157,8 +158,11 @@ class _AddWordPageState extends State<AddWordPage> {
           ),
           child: Row(
             children: <Widget>[
-              Icon(Icons.school_outlined,
-                  size: 18, color: cs.onPrimaryContainer),
+              Icon(
+                Icons.school_outlined,
+                size: 18,
+                color: cs.onPrimaryContainer,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -202,7 +206,11 @@ class _AddWordPageState extends State<AddWordPage> {
       AppToast.show(context, '已填充「$word」，请核对后保存');
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, 'AI 补全失败：$e', duration: const Duration(seconds: 3));
+      AppToast.show(
+        context,
+        'AI 补全失败：$e',
+        duration: const Duration(seconds: 3),
+      );
     } finally {
       if (mounted) setState(() => _aiLoading = false);
     }

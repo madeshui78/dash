@@ -26,8 +26,9 @@ class _StatsPageState extends State<StatsPage> {
 
   void _reload() {
     setState(() {
-      _future =
-          DatabaseHelper.instance.getStats(track: TrackStore.current.value);
+      _future = DatabaseHelper.instance.getStats(
+        track: TrackStore.current.value,
+      );
     });
   }
 
@@ -60,8 +61,9 @@ class _StatsPageState extends State<StatsPage> {
         return RefreshIndicator(
           onRefresh: () async {
             setState(() {
-              _future = DatabaseHelper.instance
-                  .getStats(track: TrackStore.current.value);
+              _future = DatabaseHelper.instance.getStats(
+                track: TrackStore.current.value,
+              );
             });
           },
           child: ListView(
@@ -69,17 +71,45 @@ class _StatsPageState extends State<StatsPage> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Expanded(child: _statCard('总单词', '$total', Icons.book_outlined, Colors.teal)),
+                  Expanded(
+                    child: _statCard(
+                      '总单词',
+                      '$total',
+                      Icons.book_outlined,
+                      Colors.teal,
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _statCard('已掌握', '$mastered', Icons.check_circle_outline, Colors.green)),
+                  Expanded(
+                    child: _statCard(
+                      '已掌握',
+                      '$mastered',
+                      Icons.check_circle_outline,
+                      Colors.green,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: <Widget>[
-                  Expanded(child: _statCard('待复习', '$due', Icons.schedule_outlined, Colors.orange)),
+                  Expanded(
+                    child: _statCard(
+                      '待复习',
+                      '$due',
+                      Icons.schedule_outlined,
+                      Colors.orange,
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _statCard('今日复习', '$todayReviews', Icons.today_outlined, Colors.blue)),
+                  Expanded(
+                    child: _statCard(
+                      '今日复习',
+                      '$todayReviews',
+                      Icons.today_outlined,
+                      Colors.blue,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -89,9 +119,13 @@ class _StatsPageState extends State<StatsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const Text('今日正确率',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w500)),
+                      const Text(
+                        '今日正确率',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       LinearProgressIndicator(
                         value: rate,
@@ -119,9 +153,13 @@ class _StatsPageState extends State<StatsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const Text('掌握进度',
-                            style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w500)),
+                        const Text(
+                          '掌握进度',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         LinearProgressIndicator(
                           value: mastered / total,
@@ -158,9 +196,14 @@ class _StatsPageState extends State<StatsPage> {
           children: <Widget>[
             Icon(icon, size: 22, color: color),
             const SizedBox(height: 10),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.w500, color: cs.onSurface)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurface,
+              ),
+            ),
             const SizedBox(height: 2),
             Text(label, style: TextStyle(fontSize: 12, color: cs.outline)),
           ],

@@ -66,6 +66,10 @@ class _ChatPageState extends State<ChatPage> {
   final List<_RailEntry> _rail = <_RailEntry>[];
   bool _digestRunning = false;
 
+  /// 每次回答附带的「思路」，按消息 id 存，只在本次会话内存里
+  final Map<int, String> _traces = <int, String>{};
+  final Set<int> _openTrace = <int>{};
+
   /// 每次发送时按当前考试赛道拼，切了赛道回答的侧重点也跟着变
   String get _systemPrompt {
     final String exam = TrackStore.labelOf(TrackStore.current.value);
@@ -78,7 +82,10 @@ class _ChatPageState extends State<ChatPage> {
         '5. 用 Markdown 排版：小节标题用 ###，并列内容用 - 列表，'
         '单词和术语用 **加粗** 或 `反引号`；\n'
         '6. 英文例句单独成行，用 > 引用块给出，下面再标注中文和难词；\n'
-        '7. 每段不超过三行，内容多就拆小节，不要堆成一大段。';
+        '7. 每段不超过三行，内容多就拆小节，不要堆成一大段；\n'
+        '8. 正文之后另起一行，用 <!--TRACE--> 和 <!--/TRACE--> 包住你的思路：'
+        '用 1. 2. 3. 三行说明你是怎么组织这个答案的。'
+        '这段只给界面折叠展示，正文里不要提它。';
   }
 
   /// 空态时给的快捷问题，点一下直接发出去
@@ -240,6 +247,22 @@ class _ChatPageState extends State<ChatPage> {
         graphJson = reply.substring(gi + 'GRAPH_JSON:'.length).trim();
       }
 
+      // 思路片段：只用于折叠展示，不进正文、不落库
+      String trace = '';
+      final int t1 = visible.indexOf('<!--TRACE-->');
+      if (t1 >= 0) {
+        final int t2 = visible.indexOf('<!--/TRACE-->', t1);
+        if (t2 > t1) {
+          trace = visible.substring(t1 + '<!--TRACE-->'.length, t2).trim();
+          visible =
+              (visible.substring(0, t1) +
+                      visible.substring(t2 + '<!--/TRACE-->'.length))
+                  .trim();
+        } else {
+          visible = visible.substring(0, t1).trim();
+        }
+      }
+
       final int replyId = await DatabaseHelper.instance.addChatMessage(
         ChatMessage(role: 'assistant', content: visible),
         sessionId: sid,
@@ -259,6 +282,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
         );
         if (graph != null) _graphs[replyId] = graph;
+        if (trace.isNotEmpty) _traces[replyId] = trace;
         _busy = false;
       });
       _scrollToEnd();
@@ -644,7 +668,7 @@ class _ChatPageState extends State<ChatPage> {
                   Text(
                     '对话记录',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: p.ink,
                     ),
@@ -875,7 +899,7 @@ class _ChatPageState extends State<ChatPage> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 10),
-          Text('正在整理今天的错词…', style: TextStyle(fontSize: 12.5, color: p.muted)),
+          Text('正在整理今天的错词…', style: TextStyle(fontSize: 13, color: p.muted)),
         ],
       ),
     );
@@ -917,7 +941,7 @@ class _ChatPageState extends State<ChatPage> {
                   Text(
                     'AI',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       letterSpacing: 0.4,
                       color: p.blue,
                     ),
@@ -946,7 +970,7 @@ class _ChatPageState extends State<ChatPage> {
                   ? Text(
                       m.content,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 14,
                         height: 1.5,
                         letterSpacing: 0.15,
                         color: userFg,
@@ -959,6 +983,8 @@ class _ChatPageState extends State<ChatPage> {
                     ),
             ),
           ),
+          if (!user && mid != null && (_traces[mid]?.isNotEmpty ?? false))
+            _traceToggle(mid),
         ],
       ),
     );
@@ -970,6 +996,67 @@ class _ChatPageState extends State<ChatPage> {
         bubble,
         MemoryGraphCard(graph: graph),
       ],
+    );
+  }
+
+  /// 折叠的「思路」：模型自己对答案组织方式的概括，不是逐字推理
+  Widget _traceToggle(int id) {
+    final ModulePalette p = ModulePalette.of(context);
+    final bool open = _openTrace.contains(id);
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() {
+              if (open) {
+                _openTrace.remove(id);
+              } else {
+                _openTrace.add(id);
+              }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.route_outlined, size: 13, color: p.muted),
+                  const SizedBox(width: 4),
+                  Text(
+                    open ? '收起思路' : '思路',
+                    style: TextStyle(fontSize: 11, color: p.muted),
+                  ),
+                  Icon(
+                    open ? Icons.expand_less : Icons.expand_more,
+                    size: 14,
+                    color: p.muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (open)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 5),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              decoration: BoxDecoration(
+                color: p.surfaceAlt,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _traces[id]!,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.6,
+                  color: p.ink.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -986,7 +1073,7 @@ class _ChatPageState extends State<ChatPage> {
       pPadding: const EdgeInsets.only(bottom: 6),
       h1: body.copyWith(fontSize: 18, fontWeight: FontWeight.w600),
       h2: body.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
-      h3: body.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+      h3: body.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
       h1Padding: const EdgeInsets.only(top: 6, bottom: 4),
       h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
       h3Padding: const EdgeInsets.only(top: 4, bottom: 2),

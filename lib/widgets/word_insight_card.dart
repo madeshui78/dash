@@ -116,7 +116,8 @@ class _WordInsightCardState extends State<WordInsightCard> {
               color: p.ink,
             ),
           ),
-          if (widget.frontText == null && widget.word.phonetic != null) ...<Widget>[
+          if (widget.frontText == null &&
+              widget.word.phonetic != null) ...<Widget>[
             const SizedBox(height: 12),
             _Phonetic(text: widget.word.phonetic!),
           ],
@@ -200,7 +201,7 @@ class _WordInsightCardState extends State<WordInsightCard> {
                   Text(
                     labels[i],
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: on ? FontWeight.w600 : FontWeight.w400,
                       color: on ? p.blue : p.muted,
                     ),
@@ -247,9 +248,7 @@ class _WordInsightCardState extends State<WordInsightCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            _failed
-                ? 'AI 内容没加载出来，可以先用词库里的例句。'
-                : '还没有内容',
+            _failed ? 'AI 内容没加载出来，可以先用词库里的例句。' : '还没有内容',
             style: TextStyle(fontSize: 12, color: p.muted),
           ),
           const SizedBox(height: 8),
@@ -270,7 +269,7 @@ class _WordInsightCardState extends State<WordInsightCard> {
       case 0:
         return Text(
           d.root.isEmpty ? '这个词没有明显的词根词缀，直接记整体意思。' : d.root,
-          style: TextStyle(fontSize: 13.5, height: 1.7, color: p.ink),
+          style: TextStyle(fontSize: 14, height: 1.7, color: p.ink),
         );
       case 1:
         if (d.collocations.isEmpty) {
@@ -290,7 +289,7 @@ class _WordInsightCardState extends State<WordInsightCard> {
                         child: Text(
                           s,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 14,
                             height: 1.5,
                             color: p.ink,
                           ),
@@ -324,7 +323,7 @@ class _WordInsightCardState extends State<WordInsightCard> {
                             Text(
                               e.en,
                               style: TextStyle(
-                                fontSize: 13.5,
+                                fontSize: 14,
                                 height: 1.5,
                                 color: p.ink,
                               ),

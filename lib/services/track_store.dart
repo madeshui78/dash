@@ -13,11 +13,7 @@ class Track {
   final String label; // 完整名称
   final String short; // 顶部显示的短名
 
-  const Track({
-    required this.id,
-    required this.label,
-    required this.short,
-  });
+  const Track({required this.id, required this.label, required this.short});
 }
 
 class TrackStore {
@@ -49,8 +45,8 @@ class TrackStore {
 
   /// 启动时从库里读回分区和上次选的那个
   static Future<void> load() async {
-    final List<Map<String, Object?>> rows =
-        await DatabaseHelper.instance.getSections();
+    final List<Map<String, Object?>> rows = await DatabaseHelper.instance
+        .getSections();
     if (rows.isEmpty) {
       _tracks = defaults;
     } else {
@@ -66,8 +62,9 @@ class TrackStore {
     }
     version.value++;
 
-    final String? saved =
-        await DatabaseHelper.instance.getSetting('current_track');
+    final String? saved = await DatabaseHelper.instance.getSetting(
+      'current_track',
+    );
     final bool ok = saved != null && _tracks.any((Track t) => t.id == saved);
     current.value = ok ? saved! : _tracks.first.id;
   }

@@ -86,7 +86,6 @@ class SessionDraft {
   static Map<String, String> writeTextMap(Map<int, String> src) =>
       src.map((int k, String v) => MapEntry<String, String>('$k', v));
 
-  static Map<String, int> writeBoolMap(Map<int, bool> src) => src.map(
-        (int k, bool v) => MapEntry<String, int>('$k', v ? 1 : 0),
-      );
+  static Map<String, int> writeBoolMap(Map<int, bool> src) =>
+      src.map((int k, bool v) => MapEntry<String, int>('$k', v ? 1 : 0));
 }

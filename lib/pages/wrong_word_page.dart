@@ -210,7 +210,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
                   ? Center(
                       child: Text(
                         showMarks ? '还没有标记词' : '还没有错题',
-                        style: TextStyle(fontSize: 12.5, color: p.muted),
+                        style: TextStyle(fontSize: 13, color: p.muted),
                       ),
                     )
                   : GestureDetector(
@@ -305,10 +305,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
           const SizedBox(height: 4),
           Row(
             children: <Widget>[
-              Text(
-                '$shown 条',
-                style: TextStyle(fontSize: 11.5, color: p.muted),
-              ),
+              Text('$shown 条', style: TextStyle(fontSize: 12, color: p.muted)),
               const Spacer(),
               if (_tab == 1 && data.words.isNotEmpty) ...<Widget>[
                 MotionButton(
@@ -402,7 +399,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
                     '${h.essayDate} · ${h.essayTitle}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10.5, color: p.muted),
+                    style: TextStyle(fontSize: 11, color: p.muted),
                   ),
                   if (open) ...<Widget>[
                     if (h.mark.sentence.isNotEmpty) ...<Widget>[
@@ -420,7 +417,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
                         child: Text(
                           h.mark.sentence,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             height: 1.55,
                             color: p.ink.withValues(alpha: 0.8),
                           ),
@@ -489,7 +486,7 @@ class _WrongWordPageState extends State<WrongWordPage> {
         title: Text(
           w.en,
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             color: p.ink,
           ),

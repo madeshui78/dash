@@ -64,7 +64,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final String mode = await StudySettings.dictationMode();
     final String flow = await StudySettings.studyFlow();
     final String context = await AiService.loadUserContext();
-    final bool tts = await DatabaseHelper.instance.getSetting('tts_enabled') != '0';
+    final bool tts =
+        await DatabaseHelper.instance.getSetting('tts_enabled') != '0';
     final double rate = await StudySettings.speechRate();
     final double essaySize = await EssayStore.fontSize();
     if (!mounted) return;
@@ -109,8 +110,10 @@ class _SettingsPageState extends State<SettingsPage> {
       await AiService.saveUserContext(_context.text);
       // 发音开关改完立刻生效，不用等下次进设置
       TtsService.enabled = _ttsOn;
-      await DatabaseHelper.instance
-          .setSetting('tts_enabled', _ttsOn ? '1' : '0');
+      await DatabaseHelper.instance.setSetting(
+        'tts_enabled',
+        _ttsOn ? '1' : '0',
+      );
       if (!mounted) return;
       AppToast.show(context, '已保存');
     } catch (e) {
@@ -152,8 +155,10 @@ class _SettingsPageState extends State<SettingsPage> {
       final String json = await BackupService.exportJson();
       final Directory dir = await getTemporaryDirectory();
       final String stamp = _timestamp();
-      final File file = File('${dir.path}${Platform.pathSeparator}'
-          'english_backup_$stamp.json');
+      final File file = File(
+        '${dir.path}${Platform.pathSeparator}'
+        'english_backup_$stamp.json',
+      );
       await file.writeAsString(json);
 
       if (!mounted) return;
@@ -387,8 +392,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: Text('每天自动抽几个新词',
-                          style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                      child: Text(
+                        '每天自动抽几个新词',
+                        style: TextStyle(fontSize: 13, color: cs.onSurface),
+                      ),
                     ),
                     SizedBox(
                       width: 90,
@@ -408,8 +415,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 14),
                 Row(
                   children: <Widget>[
-                    Text('作文字号',
-                        style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                    Text(
+                      '作文字号',
+                      style: TextStyle(fontSize: 13, color: cs.onSurface),
+                    ),
                     const Spacer(),
                     Text(
                       '${_essayFontSize.round()}',
@@ -423,13 +432,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   max: 24,
                   divisions: 10,
                   label: '${_essayFontSize.round()}',
-                  onChanged: (double v) =>
-                      setState(() => _essayFontSize = v),
+                  onChanged: (double v) => setState(() => _essayFontSize = v),
                   onChangeEnd: (double v) => EssayStore.setFontSize(v),
                 ),
                 const SizedBox(height: 6),
-                Text('默写用什么形式',
-                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                Text(
+                  '默写用什么形式',
+                  style: TextStyle(fontSize: 13, color: cs.onSurface),
+                ),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
                   segments: const <ButtonSegment<String>>[
@@ -450,8 +460,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 const SizedBox(height: 22),
-                Text('学习走哪套流程',
-                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                Text(
+                  '学习走哪套流程',
+                  style: TextStyle(fontSize: 13, color: cs.onSurface),
+                ),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
                   segments: const <ButtonSegment<String>>[
@@ -476,9 +488,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   cs,
                   _studyFlow == 'loop'
                       ? '拼第 1 个 → 闪中文并朗读 → 拼第 2 个 → 回头考第 1 个，'
-                          '依次往后。每一步都能听发音，耳朵必须参与。'
+                            '依次往后。每一步都能听发音，耳朵必须参与。'
                       : '一批词过四遍：看英想中 → 看中想英 → 写中文 → 写英文。'
-                          '适合一次性啃完一批。',
+                            '适合一次性啃完一批。',
                 ),
                 const SizedBox(height: 12),
                 FilledButton.tonalIcon(
@@ -493,7 +505,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _hint(
                   cs,
                   '现在每天抽 $_dailyCount 个。抽词只从「没掌握、也没抽过」的词里'
-                      '随机取，跨天不会重复；词抽完了会提示你再导入一批。',
+                  '随机取，跨天不会重复；词抽完了会提示你再导入一批。',
                 ),
 
                 const SizedBox(height: 28),
@@ -502,10 +514,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 _sectionTitle(cs, '数据备份'),
                 const SizedBox(height: 12),
-                _hint(
-                  cs,
-                  '卸载 App 会丢数据。导出后把文件存到网盘或发给自己，换手机/误删时导回来就行。',
-                ),
+                _hint(cs, '卸载 App 会丢数据。导出后把文件存到网盘或发给自己，换手机/误删时导回来就行。'),
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
@@ -594,7 +603,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _hint(
           cs,
           '往左更慢（听得清每个音节），往右更快（接近正常说话）。'
-              '拖动时会念一个词给你试听。',
+          '拖动时会念一个词给你试听。',
         ),
       ],
     );

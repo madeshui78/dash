@@ -8,8 +8,9 @@ class ThemeStore {
   ThemeStore._();
 
   /// 当前模式，UI 监听它重建 MaterialApp
-  static final ValueNotifier<ThemeMode> mode =
-      ValueNotifier<ThemeMode>(ThemeMode.system);
+  static final ValueNotifier<ThemeMode> mode = ValueNotifier<ThemeMode>(
+    ThemeMode.system,
+  );
 
   static const String _key = 'theme_mode';
 

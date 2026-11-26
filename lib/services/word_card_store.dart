@@ -22,8 +22,7 @@ class WordCardData {
     required this.examples,
   });
 
-  bool get isEmpty =>
-      root.isEmpty && collocations.isEmpty && examples.isEmpty;
+  bool get isEmpty => root.isEmpty && collocations.isEmpty && examples.isEmpty;
 }
 
 class WordExample {
@@ -51,8 +50,8 @@ class WordCardStore {
   static Future<WordCardData?> _load(Word word) async {
     try {
       // 1) 本地缓存
-      final Map<String, String>? row =
-          await DatabaseHelper.instance.getWordCard(word.id!);
+      final Map<String, String>? row = await DatabaseHelper.instance
+          .getWordCard(word.id!);
       if (row != null && row['root']!.isNotEmpty) {
         final WordCardData data = _fromParts(
           row['root']!,
@@ -117,11 +116,7 @@ class WordCardStore {
     }
   }
 
-  static WordCardData _fromParts(
-    String rootRaw,
-    String colRaw,
-    String exRaw,
-  ) {
+  static WordCardData _fromParts(String rootRaw, String colRaw, String exRaw) {
     String root = rootRaw;
     String pos = '';
     try {

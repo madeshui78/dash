@@ -307,7 +307,7 @@ class _WordListPageState extends State<WordListPage> {
               title: const Text('多抽几个词'),
               subtitle: Text(
                 '按每日数量再加一批，现在是 ${data.dailyCount} 个',
-                style: TextStyle(fontSize: 11.5, color: p.muted),
+                style: TextStyle(fontSize: 12, color: p.muted),
               ),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -319,7 +319,7 @@ class _WordListPageState extends State<WordListPage> {
               title: Text('清空今天这批', style: TextStyle(color: p.wrong)),
               subtitle: Text(
                 '词库不受影响，随时能再抽',
-                style: TextStyle(fontSize: 11.5, color: p.muted),
+                style: TextStyle(fontSize: 12, color: p.muted),
               ),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -1321,7 +1321,7 @@ class _WordTileState extends State<_WordTile> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     '移到哪个分区',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

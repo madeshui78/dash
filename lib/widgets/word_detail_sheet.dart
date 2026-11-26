@@ -53,19 +53,26 @@ class _WordDetailSheetState extends State<_WordDetailSheet> {
 
       switch (kind) {
         case 'example':
-          final List<String> list =
-              await AiService.makeExamples(cfg, widget.word.en);
+          final List<String> list = await AiService.makeExamples(
+            cfg,
+            widget.word.en,
+          );
           title = 'AI 造句';
           body = list.isEmpty
               ? '（这次没造出来，换个词或者检查 AI 配置）'
-              : list.asMap().entries.map((MapEntry<int, String> e) {
-                  return '${e.key + 1}. ${e.value}';
-                }).join('\n\n');
+              : list
+                    .asMap()
+                    .entries
+                    .map((MapEntry<int, String> e) {
+                      return '${e.key + 1}. ${e.value}';
+                    })
+                    .join('\n\n');
           break;
         case 'root':
           // 词根拆解复用批量补全那套提示词，只问一个词
-          final List<WordEntry> got =
-              await AiService.lookupWords(cfg, <String>[widget.word.en]);
+          final List<WordEntry> got = await AiService.lookupWords(cfg, <String>[
+            widget.word.en,
+          ]);
           final WordEntry e = got.isEmpty
               ? WordEntry(
                   en: widget.word.en,
@@ -112,10 +119,8 @@ class _WordDetailSheetState extends State<_WordDetailSheet> {
     nav.pop();
     await nav.push<Object?>(
       MaterialPageRoute<Object?>(
-        builder: (BuildContext _) => StudySessionPage(
-          words: <Word>[w],
-          isDaily: false,
-        ),
+        builder: (BuildContext _) =>
+            StudySessionPage(words: <Word>[w], isDaily: false),
       ),
     );
   }
@@ -224,7 +229,7 @@ class _WordDetailSheetState extends State<_WordDetailSheet> {
               const SizedBox(height: 6),
               Text(
                 w.phonetic!,
-                style: TextStyle(fontSize: 17, color: cs.onSurfaceVariant),
+                style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
               ),
             ],
             const SizedBox(height: 14),

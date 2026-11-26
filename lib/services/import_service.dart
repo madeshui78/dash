@@ -47,7 +47,9 @@ class ImportService {
     if (ss != null) {
       final XmlDocument doc = XmlDocument.parse(utf8.decode(ss.content));
       for (final XmlElement si in doc.findAllElements('si')) {
-        shared.add(si.findAllElements('t').map((XmlElement t) => t.innerText).join());
+        shared.add(
+          si.findAllElements('t').map((XmlElement t) => t.innerText).join(),
+        );
       }
     }
 
@@ -118,15 +120,18 @@ class ImportService {
     // docx 本质是 zip。很多"Word 文件"其实是老格式/网页版伪装的，
     // 先看文件头，别让用户对着一句看不懂的 zip 报错猜原因。
     if (bytes.length >= 8 &&
-        bytes[0] == 0xD0 && bytes[1] == 0xCF &&
-        bytes[2] == 0x11 && bytes[3] == 0xE0) {
+        bytes[0] == 0xD0 &&
+        bytes[1] == 0xCF &&
+        bytes[2] == 0x11 &&
+        bytes[3] == 0xE0) {
       throw Exception(
         '这是老版的 .doc 格式（或改了扩展名的 .doc），不是真正的 .docx。\n'
         '用 WPS / Word 打开后「另存为 .docx」，再回来导入。',
       );
     }
-    final String head =
-        bytes.length >= 8 ? String.fromCharCodes(bytes.sublist(0, 8)) : '';
+    final String head = bytes.length >= 8
+        ? String.fromCharCodes(bytes.sublist(0, 8))
+        : '';
     if (head.startsWith('{\\rtf')) {
       throw Exception(
         '这是 RTF 格式（或改了扩展名的 RTF），不是真正的 .docx。\n'
@@ -155,8 +160,9 @@ class ImportService {
     final XmlDocument doc = XmlDocument.parse(utf8.decode(f.content));
     // 正文节点必须按「局部名」找：findAllElements('body') 只匹配限定名，
     // 匹配不到带 w: 前缀的节点（实测），所以这里自己按 local 过滤。
-    final List<XmlElement> bodies =
-        doc.descendantElements.where((XmlElement e) => e.name.local == 'body').toList();
+    final List<XmlElement> bodies = doc.descendantElements
+        .where((XmlElement e) => e.name.local == 'body')
+        .toList();
     if (bodies.isEmpty) {
       throw Exception('这个 Word 文件里没有正文内容，检查一下文档是不是空的。');
     }
@@ -169,22 +175,20 @@ class ImportService {
       final String tag = node.name.local;
 
       if (tag == 'p') {
-        final String text = node
-            .descendantElements
+        final String text = node.descendantElements
             .where((XmlElement e) => e.name.local == 't')
             .map((XmlElement t) => t.innerText)
             .join()
             .trim();
         if (text.isNotEmpty) rows.add(<String>[text]);
       } else if (tag == 'tbl') {
-        for (final XmlElement tr in node.descendantElements
-            .where((XmlElement e) => e.name.local == 'tr')) {
-          final List<String> cells = tr
-              .descendantElements
+        for (final XmlElement tr in node.descendantElements.where(
+          (XmlElement e) => e.name.local == 'tr',
+        )) {
+          final List<String> cells = tr.descendantElements
               .where((XmlElement e) => e.name.local == 'tc')
               .map(
-                (XmlElement tc) => tc
-                    .descendantElements
+                (XmlElement tc) => tc.descendantElements
                     .where((XmlElement e) => e.name.local == 't')
                     .map((XmlElement t) => t.innerText)
                     .join()
@@ -243,11 +247,12 @@ class ImportService {
       int chars = 0;
 
       for (int i = 0; i < doc.pages.count; i++) {
-        final String pageText =
-            extractor.extractText(startPageIndex: i, endPageIndex: i);
+        final String pageText = extractor.extractText(
+          startPageIndex: i,
+          endPageIndex: i,
+        );
         chars += pageText.trim().length;
-        for (final String rawLine
-            in const LineSplitter().convert(pageText)) {
+        for (final String rawLine in const LineSplitter().convert(pageText)) {
           final String line = rawLine.trim();
           if (line.isEmpty) continue;
           rows.add(_splitPdfLine(line));
@@ -285,8 +290,10 @@ class ImportService {
     }
 
     // 单空格切：只认「一个英文词 + 后面一串中文/解释」这种最常见的排版
-    final List<String> bySpace =
-        line.split(' ').map((String s) => s.trim()).toList();
+    final List<String> bySpace = line
+        .split(' ')
+        .map((String s) => s.trim())
+        .toList();
     return bySpace.isEmpty ? <String>[line] : bySpace;
   }
 
@@ -314,6 +321,7 @@ class _ScanOnlyPdfException implements Exception {
   const _ScanOnlyPdfException();
 
   @override
-  String toString() => '这个 PDF 里没有可复制的文字，应该是扫描件或拍照件。\n'
+  String toString() =>
+      '这个 PDF 里没有可复制的文字，应该是扫描件或拍照件。\n'
       '先用 WPS 或在线工具把它转成文字版（.txt / .xlsx / .docx），再来导入。';
 }

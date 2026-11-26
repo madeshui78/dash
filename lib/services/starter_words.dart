@@ -41,15 +41,7 @@ class StarterWords {
         final String en = t.substring(0, bar).trim();
         final String zh = t.substring(bar + 1).trim();
         if (en.isEmpty || zh.isEmpty) continue;
-        words.add(
-          Word(
-            id: null,
-            en: en,
-            zh: zh,
-            tag: '四级',
-            track: track,
-          ),
-        );
+        words.add(Word(id: null, en: en, zh: zh, tag: '四级', track: track));
       }
       if (words.isNotEmpty) {
         await db.insertWordsBatch(words);

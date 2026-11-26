@@ -99,8 +99,10 @@ class _ImportPageState extends State<ImportPage> {
     try {
       // 解析 + 单列折叠放后台 isolate：大文件（几 MB 的 XML）在主 isolate
       // 上跑会把界面卡住几秒
-      final List<List<String>> rows = await compute(_parseAndFold,
-          <Object>[picked.name, data]);
+      final List<List<String>> rows = await compute(_parseAndFold, <Object>[
+        picked.name,
+        data,
+      ]);
       if (!mounted) return;
       if (rows.isEmpty) {
         _showError('这个文件里没读到任何内容');
@@ -134,8 +136,18 @@ class _ImportPageState extends State<ImportPage> {
   bool _looksLikeHeader(List<String> row) {
     final String joined = row.join(' ').toLowerCase();
     const List<String> hints = <String>[
-      '单词', '英文', '词汇', '中文', '释义', '音标', '例句',
-      'word', 'english', 'meaning', ' phonetic', 'example',
+      '单词',
+      '英文',
+      '词汇',
+      '中文',
+      '释义',
+      '音标',
+      '例句',
+      'word',
+      'english',
+      'meaning',
+      ' phonetic',
+      'example',
     ];
     for (final String h in hints) {
       if (joined.contains(h)) return true;
@@ -157,9 +169,11 @@ class _ImportPageState extends State<ImportPage> {
         setState(() {
           _enCol = g.enColumn;
           _zhCol =
-              (g.zhColumn != null && g.zhColumn! >= 0 && g.zhColumn! < _colCount)
-                  ? g.zhColumn!
-                  : -1;
+              (g.zhColumn != null &&
+                  g.zhColumn! >= 0 &&
+                  g.zhColumn! < _colCount)
+              ? g.zhColumn!
+              : -1;
           _hasHeader = g.hasHeader;
         });
       }
@@ -279,8 +293,9 @@ class _ImportPageState extends State<ImportPage> {
         return;
       }
 
-      final ImportResult r =
-          await DatabaseHelper.instance.insertWordsBatch(words);
+      final ImportResult r = await DatabaseHelper.instance.insertWordsBatch(
+        words,
+      );
       if (!mounted) return;
       setState(() => _importing = false);
 
@@ -339,7 +354,11 @@ class _ImportPageState extends State<ImportPage> {
         const SizedBox(height: 20),
         Text(
           '支持的格式',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: cs.primary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: cs.primary,
+          ),
         ),
         const SizedBox(height: 8),
         _hint(cs, '.pdf  文字型 PDF（扫描件不行，得先转成文字版）'),
@@ -349,24 +368,44 @@ class _ImportPageState extends State<ImportPage> {
         const SizedBox(height: 20),
         Text(
           'AI 能帮你干什么',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: cs.primary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: cs.primary,
+          ),
         ),
         const SizedBox(height: 8),
-        _hint(cs, '选完文件，AI 会先看一眼判断哪一列是英文、哪一列是中文，'
-            '你再确认一下就行。'),
-        _hint(cs, '只要一列英文也能导入：音标、中文释义、例句、词根拆解'
-            '都可以让 AI 批量补齐。'),
+        _hint(
+          cs,
+          '选完文件，AI 会先看一眼判断哪一列是英文、哪一列是中文，'
+          '你再确认一下就行。',
+        ),
+        _hint(
+          cs,
+          '只要一列英文也能导入：音标、中文释义、例句、词根拆解'
+          '都可以让 AI 批量补齐。',
+        ),
         const SizedBox(height: 20),
         Text(
           '怎么排都行',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: cs.primary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: cs.primary,
+          ),
         ),
         const SizedBox(height: 8),
-        _hint(cs, '两列（英文|中文）、多列（英文|音标|中文|例句）都可以，'
-            '选完文件后你自己点一下哪一列是什么。'),
+        _hint(
+          cs,
+          '两列（英文|中文）、多列（英文|音标|中文|例句）都可以，'
+          '选完文件后你自己点一下哪一列是什么。',
+        ),
         _hint(cs, '重复的词会自动跳过，不会覆盖你已经学过的进度。'),
-        _hint(cs, '导入的词进「${TrackStore.labelOf(TrackStore.current.value)}」，'
-            '跟别的考试互不影响。'),
+        _hint(
+          cs,
+          '导入的词进「${TrackStore.labelOf(TrackStore.current.value)}」，'
+          '跟别的考试互不影响。',
+        ),
       ],
     );
   }
@@ -374,7 +413,9 @@ class _ImportPageState extends State<ImportPage> {
   Widget _buildPreview() {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final int start = _hasHeader ? 1 : 0;
-    final int previewEnd = _rows!.length > (start + 8) ? start + 8 : _rows!.length;
+    final int previewEnd = _rows!.length > (start + 8)
+        ? start + 8
+        : _rows!.length;
 
     return Column(
       children: <Widget>[
@@ -412,8 +453,10 @@ class _ImportPageState extends State<ImportPage> {
                       decoration: const InputDecoration(
                         isDense: true,
                         border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
                       ),
                       items: TrackStore.tracks
                           .map(
@@ -453,16 +496,28 @@ class _ImportPageState extends State<ImportPage> {
               // 列映射
               Text(
                 '哪一列是什么',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: cs.primary),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: cs.primary,
+                ),
               ),
               const SizedBox(height: 10),
               _colPicker('英文 *', _enCol, (int v) => setState(() => _enCol = v)),
               const SizedBox(height: 8),
               _colPicker('中文释义', _zhCol, (int v) => setState(() => _zhCol = v)),
               const SizedBox(height: 8),
-              _colPicker('音标（可不选）', _phCol, (int v) => setState(() => _phCol = v)),
+              _colPicker(
+                '音标（可不选）',
+                _phCol,
+                (int v) => setState(() => _phCol = v),
+              ),
               const SizedBox(height: 8),
-              _colPicker('例句（可不选）', _exCol, (int v) => setState(() => _exCol = v)),
+              _colPicker(
+                '例句（可不选）',
+                _exCol,
+                (int v) => setState(() => _exCol = v),
+              ),
               if (_guessing)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -471,7 +526,10 @@ class _ImportPageState extends State<ImportPage> {
                       SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cs.primary,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -488,7 +546,11 @@ class _ImportPageState extends State<ImportPage> {
               const SizedBox(height: 18),
               Text(
                 '预览（前 ${previewEnd - start} 行）',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: cs.primary),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: cs.primary,
+                ),
               ),
               const SizedBox(height: 8),
               _buildTable(start, previewEnd),
@@ -515,7 +577,11 @@ class _ImportPageState extends State<ImportPage> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.auto_awesome, size: 18, color: cs.onPrimaryContainer),
+                Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: cs.onPrimaryContainer,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'AI 正在补全…',
@@ -539,7 +605,10 @@ class _ImportPageState extends State<ImportPage> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => setState(() => _enrichCancel = true),
-                child: Text('停止', style: TextStyle(color: cs.onPrimaryContainer)),
+                child: Text(
+                  '停止',
+                  style: TextStyle(color: cs.onPrimaryContainer),
+                ),
               ),
             ),
           ],
@@ -633,7 +702,10 @@ class _ImportPageState extends State<ImportPage> {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-              child: Text('${i + 1}', style: TextStyle(fontSize: 11, color: cs.outline)),
+              child: Text(
+                '${i + 1}',
+                style: TextStyle(fontSize: 11, color: cs.outline),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
@@ -696,7 +768,11 @@ class _ImportPageState extends State<ImportPage> {
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: cs.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -706,7 +782,9 @@ class _ImportPageState extends State<ImportPage> {
       const DropdownMenuItem<int>(value: -1, child: Text('不导入')),
     ];
     for (int i = 0; i < _colCount; i++) {
-      final String sample = _rows!.isEmpty ? '' : _cell(_rows![_hasHeader ? 1 : 0], i);
+      final String sample = _rows!.isEmpty
+          ? ''
+          : _cell(_rows![_hasHeader ? 1 : 0], i);
       items.add(
         DropdownMenuItem<int>(
           value: i,
@@ -719,7 +797,10 @@ class _ImportPageState extends State<ImportPage> {
     }
     return Row(
       children: <Widget>[
-        SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 13))),
+        SizedBox(
+          width: 110,
+          child: Text(label, style: const TextStyle(fontSize: 13)),
+        ),
         Expanded(
           child: DropdownButtonFormField<int>(
             initialValue: value,
@@ -775,8 +856,8 @@ class _ImportPageState extends State<ImportPage> {
           Icon(Icons.school_outlined, size: 18, color: cs.onPrimaryContainer),
           const SizedBox(width: 8),
           Expanded(
-          child: Text(
-            '导入到「${TrackStore.labelOf(_target)}」',
+            child: Text(
+              '导入到「${TrackStore.labelOf(_target)}」',
               style: TextStyle(fontSize: 13, color: cs.onPrimaryContainer),
             ),
           ),
@@ -790,7 +871,11 @@ class _ImportPageState extends State<ImportPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         '· $text',
-        style: TextStyle(fontSize: 12, height: 1.5, color: cs.onSurface.withValues(alpha: 0.6)),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.5,
+          color: cs.onSurface.withValues(alpha: 0.6),
+        ),
       ),
     );
   }

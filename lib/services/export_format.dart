@@ -64,9 +64,7 @@ class ExportFormatter {
   static String asCsv(List<Word> list, {required bool withStats}) {
     // Excel 认 BOM，不然中文全是乱码——这个坑踩过
     final StringBuffer sb = StringBuffer('\uFEFF');
-    sb.writeln(withStats
-        ? '单词,音标,释义,例句,答对,答错,已掌握'
-        : '单词,音标,释义,例句');
+    sb.writeln(withStats ? '单词,音标,释义,例句,答对,答错,已掌握' : '单词,音标,释义,例句');
     for (final Word x in list) {
       sb.writeln(
         <String>[
@@ -87,12 +85,16 @@ class ExportFormatter {
 
   static String asMarkdown(List<Word> list, {required bool withStats}) {
     final StringBuffer sb = StringBuffer();
-    sb.writeln(withStats
-        ? '| 单词 | 音标 | 释义 | 例句 | 对 | 错 | 已掌握 |'
-        : '| 单词 | 音标 | 释义 | 例句 |');
-    sb.writeln(withStats
-        ? '| --- | --- | --- | --- | --- | --- | --- |'
-        : '| --- | --- | --- | --- |');
+    sb.writeln(
+      withStats
+          ? '| 单词 | 音标 | 释义 | 例句 | 对 | 错 | 已掌握 |'
+          : '| 单词 | 音标 | 释义 | 例句 |',
+    );
+    sb.writeln(
+      withStats
+          ? '| --- | --- | --- | --- | --- | --- | --- |'
+          : '| --- | --- | --- | --- |',
+    );
     for (final Word x in list) {
       sb.writeln(
         '| ${_md(x.en)} | ${_md(x.phonetic ?? '')} | ${_md(x.zh)} | '

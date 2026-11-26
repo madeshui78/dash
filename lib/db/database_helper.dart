@@ -114,14 +114,16 @@ class DatabaseHelper {
     if (ready != null) return Future<Database>.value(ready);
     // 单飞：并发调用时 openDatabase 只跑一次。
     // 双开同一个库文件在一些机型上会把后续查询卡死。
-    return _opening ??= _initDatabase().then((Database db) {
-      _database = db;
-      _opening = null;
-      return db;
-    }).catchError((Object e) {
-      _opening = null;
-      throw e;
-    });
+    return _opening ??= _initDatabase()
+        .then((Database db) {
+          _database = db;
+          _opening = null;
+          return db;
+        })
+        .catchError((Object e) {
+          _opening = null;
+          throw e;
+        });
   }
 
   Future<Database> _initDatabase() async {
@@ -292,9 +294,7 @@ class DatabaseHelper {
         created_at  INTEGER NOT NULL
       )
     ''');
-    await db.execute(
-      'CREATE INDEX idx_marks_essay ON essay_marks (essay_id)',
-    );
+    await db.execute('CREATE INDEX idx_marks_essay ON essay_marks (essay_id)');
 
     // 逐句译文：一篇作文一条，存 JSON 数组，关掉再打开直接读
     await db.execute('''
@@ -410,7 +410,9 @@ class DatabaseHelper {
       await db.execute(
         "ALTER TABLE reviews ADD COLUMN track TEXT NOT NULL DEFAULT 'CET4'",
       );
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_words_track ON words (track)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_words_track ON words (track)',
+      );
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_reviews_track ON reviews (track)',
       );
@@ -449,9 +451,7 @@ class DatabaseHelper {
         tableDrawPool,
         tableChat,
       ]) {
-        await db.execute(
-          'ALTER TABLE $table ADD COLUMN uuid TEXT',
-        );
+        await db.execute('ALTER TABLE $table ADD COLUMN uuid TEXT');
         await db.execute(
           'ALTER TABLE $table ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0',
         );
@@ -493,7 +493,9 @@ class DatabaseHelper {
           created_at INTEGER NOT NULL
         )
       ''');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_essays_date ON essays (date)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_essays_date ON essays (date)',
+      );
       await db.execute('''
         CREATE TABLE IF NOT EXISTS essay_marks (
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -632,8 +634,9 @@ class DatabaseHelper {
 
   /// 第一次建库 / 升级到 v12 时，把原来四个固定的分区写进表里
   Future<void> _seedSections(Database db) async {
-    final List<Map<String, Object?>> rows =
-        await db.rawQuery('SELECT COUNT(*) AS n FROM $tableSections');
+    final List<Map<String, Object?>> rows = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM $tableSections',
+    );
     if (((rows.first['n'] as int?) ?? 0) > 0) return;
     const List<List<String>> defaults = <List<String>>[
       <String>['CET4', '英语四级'],
@@ -664,11 +667,7 @@ class DatabaseHelper {
     for (final Map<String, dynamic> r in rows) {
       await db.update(
         table,
-        <String, Object?>{
-          'uuid': newUuid(),
-          'updated_at': now,
-          'dirty': 1,
-        },
+        <String, Object?>{'uuid': newUuid(), 'updated_at': now, 'dirty': 1},
         where: 'id = ?',
         whereArgs: <Object?>[r['id']],
       );
@@ -722,15 +721,11 @@ class DatabaseHelper {
     if (rows.isEmpty) return;
     final String? uuid = rows.first['uuid'] as String?;
     if (uuid == null || uuid.isEmpty) return;
-    await db.insert(
-      tableTombstones,
-      <String, Object?>{
-        'uuid': uuid,
-        'tbl': table,
-        'deleted_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(tableTombstones, <String, Object?>{
+      'uuid': uuid,
+      'tbl': table,
+      'deleted_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// 某个赛道下的全部单词；tag 传 null 表示该赛道全部课次
@@ -771,13 +766,17 @@ class DatabaseHelper {
 
     switch (filter) {
       case 'fresh':
-        where.add('mastered = 0 AND id NOT IN '
-            '(SELECT word_id FROM $tableDrawPool WHERE track = ?)');
+        where.add(
+          'mastered = 0 AND id NOT IN '
+          '(SELECT word_id FROM $tableDrawPool WHERE track = ?)',
+        );
         args.add(track);
         break;
       case 'today':
-        where.add('id IN (SELECT word_id FROM $tableDrawPool '
-            'WHERE track = ? AND draw_date = ?)');
+        where.add(
+          'id IN (SELECT word_id FROM $tableDrawPool '
+          'WHERE track = ? AND draw_date = ?)',
+        );
         args.add(track);
         args.add(_today());
         break;
@@ -815,8 +814,10 @@ class DatabaseHelper {
       args.add('${prefix.toLowerCase()}%');
     }
     if (filter == 'fresh') {
-      where.add('mastered = 0 AND id NOT IN '
-          '(SELECT word_id FROM $tableDrawPool WHERE track = ?)');
+      where.add(
+        'mastered = 0 AND id NOT IN '
+        '(SELECT word_id FROM $tableDrawPool WHERE track = ?)',
+      );
       args.add(track);
     } else if (filter == 'wrong') {
       where.add('wrong > 0');
@@ -960,7 +961,10 @@ class DatabaseHelper {
 
   /// 自动抽：今天已经抽过就直接返回那批；没抽过才新抽 count 个。
   /// 只从「没掌握 + 没抽过」的词里随机取，所以跨天不会重复。
-  Future<List<Word>> drawDaily({required String track, required int count}) async {
+  Future<List<Word>> drawDaily({
+    required String track,
+    required int count,
+  }) async {
     final List<Word> today = await getTodayDraw(track: track);
     if (today.isNotEmpty) return today;
     return drawMore(track: track, count: count);
@@ -1168,14 +1172,22 @@ class DatabaseHelper {
       for (final Map<String, dynamic> r in rows) {
         final String? uuid = r['uuid'] as String?;
         if (uuid == null || uuid.isEmpty) continue;
-        await txn.insert(
-          tableTombstones,
-          <String, Object?>{'uuid': uuid, 'tbl': tableChat, 'deleted_at': now},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert(tableTombstones, <String, Object?>{
+          'uuid': uuid,
+          'tbl': tableChat,
+          'deleted_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
-      await txn.delete(tableChat, where: 'session_id = ?', whereArgs: <Object?>[id]);
-      await txn.delete(tableChatSessions, where: 'id = ?', whereArgs: <Object?>[id]);
+      await txn.delete(
+        tableChat,
+        where: 'session_id = ?',
+        whereArgs: <Object?>[id],
+      );
+      await txn.delete(
+        tableChatSessions,
+        where: 'id = ?',
+        whereArgs: <Object?>[id],
+      );
     });
   }
 
@@ -1211,15 +1223,11 @@ class DatabaseHelper {
 
   Future<void> saveChatGraph(int messageId, String json) async {
     final Database db = await database;
-    await db.insert(
-      tableChatGraphs,
-      <String, Object?>{
-        'message_id': messageId,
-        'json': json,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(tableChatGraphs, <String, Object?>{
+      'message_id': messageId,
+      'json': json,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<Map<int, String>> getChatGraphsForSession(int sessionId) async {
@@ -1257,11 +1265,11 @@ class DatabaseHelper {
       for (final Map<String, dynamic> r in rows) {
         final String? uuid = r['uuid'] as String?;
         if (uuid == null || uuid.isEmpty) continue;
-        await txn.insert(
-          tableTombstones,
-          <String, Object?>{'uuid': uuid, 'tbl': tableChat, 'deleted_at': now},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert(tableTombstones, <String, Object?>{
+          'uuid': uuid,
+          'tbl': tableChat,
+          'deleted_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await txn.delete(
         tableChat,
@@ -1354,7 +1362,8 @@ class DatabaseHelper {
     final List<Map<String, dynamic>> rows = await db.query(
       tableWords,
       // 已掌握的直接排除（放在 SQL 里，避免先截断 limit 再过滤导致数量不准）
-      where: 'track = ? AND mastered = 0 '
+      where:
+          'track = ? AND mastered = 0 '
           'AND next_review IS NOT NULL AND next_review <= ?',
       whereArgs: <Object?>[track, now],
       orderBy: 'next_review ASC',
@@ -1548,8 +1557,10 @@ class DatabaseHelper {
       return Sqflite.firstIntValue(r) ?? 0;
     }
 
-    final int total =
-        await count('SELECT COUNT(*) FROM $tableWords WHERE track = ?', [track]);
+    final int total = await count(
+      'SELECT COUNT(*) FROM $tableWords WHERE track = ?',
+      [track],
+    );
     final int wrongSum = await count(
       'SELECT COALESCE(SUM(wrong),0) FROM $tableWords WHERE track = ?',
       [track],
@@ -1560,9 +1571,11 @@ class DatabaseHelper {
       [track],
     );
 
-    final String todayStart =
-        DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)
-            .toIso8601String();
+    final String todayStart = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    ).toIso8601String();
     final int todayReviews = await count(
       'SELECT COUNT(*) FROM $tableReviews WHERE track = ? AND review_time >= ?',
       [track, todayStart],
@@ -1601,11 +1614,10 @@ class DatabaseHelper {
   /// 写一个配置项，已存在就覆盖
   Future<void> setSetting(String key, String value) async {
     final Database db = await database;
-    await db.insert(
-      tableSettings,
-      <String, dynamic>{'key': key, 'value': value},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(tableSettings, <String, dynamic>{
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // ---------------- 同步预留接口 ----------------
@@ -1629,18 +1641,17 @@ class DatabaseHelper {
   /// 取出待上传的删除墓碑
   Future<List<Map<String, dynamic>>> getTombstones({int limit = 200}) async {
     final Database db = await database;
-    return db.query(
-      tableTombstones,
-      orderBy: 'deleted_at ASC',
-      limit: limit,
-    );
+    return db.query(tableTombstones, orderBy: 'deleted_at ASC', limit: limit);
   }
 
   /// 一批记录上传成功后，清掉它们的 dirty 标记
   Future<void> markSynced(String table, List<String> uuids) async {
     if (uuids.isEmpty) return;
     final Database db = await database;
-    final String placeholders = List<String>.filled(uuids.length, '?').join(',');
+    final String placeholders = List<String>.filled(
+      uuids.length,
+      '?',
+    ).join(',');
     await db.update(
       table,
       <String, Object?>{'dirty': 0},
@@ -1653,7 +1664,10 @@ class DatabaseHelper {
   Future<void> clearTombstones(List<String> uuids) async {
     if (uuids.isEmpty) return;
     final Database db = await database;
-    final String placeholders = List<String>.filled(uuids.length, '?').join(',');
+    final String placeholders = List<String>.filled(
+      uuids.length,
+      '?',
+    ).join(',');
     await db.delete(
       tableTombstones,
       where: 'uuid IN ($placeholders)',
@@ -1734,10 +1748,7 @@ class DatabaseHelper {
 
   /// 整篇的标记重写一遍。数量很小（十几个），全删重插最省事，
   /// 也不会出现「改了短语、旧的还留着」这种半截状态。
-  Future<void> replaceEssayMarks(
-    String essayId,
-    List<EssayMark> marks,
-  ) async {
+  Future<void> replaceEssayMarks(String essayId, List<EssayMark> marks) async {
     final Database db = await database;
     await db.transaction((Transaction txn) async {
       await txn.delete(
@@ -1770,9 +1781,7 @@ class DatabaseHelper {
   }
 
   /// 错词本用：当前赛道所有作文标记，带出处标题和日期
-  Future<List<EssayMarkHit>> getEssayMarkHits({
-    required String track,
-  }) async {
+  Future<List<EssayMarkHit>> getEssayMarkHits({required String track}) async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.rawQuery(
       'SELECT m.*, e.title AS essay_title, e.date AS essay_date '
@@ -1796,8 +1805,7 @@ class DatabaseHelper {
     required String track,
     required String word,
   }) async {
-    final List<EssayMarkHit> all =
-        await getEssayMarkHits(track: track);
+    final List<EssayMarkHit> all = await getEssayMarkHits(track: track);
     final String key = word.trim().toLowerCase();
     for (final EssayMarkHit h in all) {
       if (h.mark.word.trim().toLowerCase() == key) return h;
@@ -1808,11 +1816,7 @@ class DatabaseHelper {
   /// 删掉一条标记（错词本里点「取消标记」）
   Future<void> deleteEssayMark(int id) async {
     final Database db = await database;
-    await db.delete(
-      tableEssayMarks,
-      where: 'id = ?',
-      whereArgs: <Object?>[id],
-    );
+    await db.delete(tableEssayMarks, where: 'id = ?', whereArgs: <Object?>[id]);
   }
 
   /// 取消标记时，如果这个词是作文带进错词本的，一并删掉。
@@ -1824,7 +1828,8 @@ class DatabaseHelper {
     final Database db = await database;
     await db.delete(
       tableWords,
-      where: "track = ? AND LOWER(en) = ? AND tag = '作文' "
+      where:
+          "track = ? AND LOWER(en) = ? AND tag = '作文' "
           'AND correct = 0 AND wrong = 1',
       whereArgs: <Object?>[track, en.trim().toLowerCase()],
     );
@@ -1846,15 +1851,11 @@ class DatabaseHelper {
 
   Future<void> saveEssayTranslation(String essayId, String content) async {
     final Database db = await database;
-    await db.insert(
-      tableEssayTranslations,
-      <String, Object?>{
-        'essay_id': essayId,
-        'content': content,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(tableEssayTranslations, <String, Object?>{
+      'essay_id': essayId,
+      'content': content,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // ---------------- 单词学习卡 ----------------
@@ -1884,17 +1885,13 @@ class DatabaseHelper {
     required String examples,
   }) async {
     final Database db = await database;
-    await db.insert(
-      tableWordCards,
-      <String, Object?>{
-        'word_id': wordId,
-        'root': root,
-        'collocations': collocations,
-        'examples': examples,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(tableWordCards, <String, Object?>{
+      'word_id': wordId,
+      'root': root,
+      'collocations': collocations,
+      'examples': examples,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // ---------------- 作文释义缓存 ----------------
@@ -1920,15 +1917,11 @@ class DatabaseHelper {
     await db.transaction((Transaction txn) async {
       for (final MapEntry<String, String> e in glosses.entries) {
         if (e.value.trim().isEmpty) continue;
-        await txn.insert(
-          tableWordGlosses,
-          <String, Object?>{
-            'en': e.key,
-            'zh': e.value.trim(),
-            'updated_at': now,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert(tableWordGlosses, <String, Object?>{
+          'en': e.key,
+          'zh': e.value.trim(),
+          'updated_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }
@@ -1999,18 +1992,14 @@ class DatabaseHelper {
   }) async {
     final Database db = await database;
     final int now = DateTime.now().millisecondsSinceEpoch;
-    await db.insert(
-      'word_notes',
-      <String, Object?>{
-        'essay_id': essayId,
-        'word': word,
-        'sentence': sentence,
-        'note': note,
-        'created_at': now,
-        'updated_at': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('word_notes', <String, Object?>{
+      'essay_id': essayId,
+      'word': word,
+      'sentence': sentence,
+      'note': note,
+      'created_at': now,
+      'updated_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteWordNote(String essayId, String word) async {
@@ -2034,7 +2023,8 @@ class DatabaseHelper {
     return rows.map(WordNote.fromMap).toList();
   }
 
-  Future<List<ChatMessage>> getDigestQa(int messageId) async {    final Database db = await database;
+  Future<List<ChatMessage>> getDigestQa(int messageId) async {
+    final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query(
       'digest_qa',
       where: 'message_id = ?',
@@ -2055,11 +2045,7 @@ class DatabaseHelper {
         .toList();
   }
 
-  Future<void> addDigestQa(
-    int messageId,
-    String role,
-    String content,
-  ) async {
+  Future<void> addDigestQa(int messageId, String role, String content) async {
     final Database db = await database;
     await db.insert('digest_qa', <String, Object?>{
       'message_id': messageId,

@@ -13,33 +13,34 @@ class SmoothRoute<T> extends PageRouteBuilder<T> {
   final Widget page;
 
   SmoothRoute({required this.page})
-      : super(
-          transitionDuration: const Duration(milliseconds: 280),
-          reverseTransitionDuration: const Duration(milliseconds: 230),
-          pageBuilder: (_, _, _) => page,
-          transitionsBuilder: (
-            BuildContext context,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-            Widget child,
-          ) {
-            final CurvedAnimation curve = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            );
-            return FadeTransition(
-              opacity: curve,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.035),
-                  end: Offset.zero,
-                ).animate(curve),
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.985, end: 1.0).animate(curve),
-                  child: child,
+    : super(
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 230),
+        pageBuilder: (_, _, _) => page,
+        transitionsBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+              Widget child,
+            ) {
+              final CurvedAnimation curve = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curve,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.035),
+                    end: Offset.zero,
+                  ).animate(curve),
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.985, end: 1.0).animate(curve),
+                    child: child,
+                  ),
                 ),
-              ),
-            );
-          },
-        );
+              );
+            },
+      );
 }

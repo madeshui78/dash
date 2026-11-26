@@ -209,10 +209,10 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
                     state: _picked == null
                         ? _OptState.idle
                         : (q.isRight(i)
-                            ? _OptState.right
-                            : (i == _picked
-                                ? _OptState.wrong
-                                : _OptState.dim)),
+                              ? _OptState.right
+                              : (i == _picked
+                                    ? _OptState.wrong
+                                    : _OptState.dim)),
                     onTap: () => _pick(i),
                   ),
                 );
@@ -239,15 +239,10 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
               onPressed: () => TtsService.speak(q.word.en),
               icon: const Icon(Icons.volume_up, size: 32),
               iconSize: 32,
-              style: IconButton.styleFrom(
-                minimumSize: const Size(88, 88),
-              ),
+              style: IconButton.styleFrom(minimumSize: const Size(88, 88)),
             ),
             const SizedBox(height: 12),
-            Text(
-              '点一下听发音',
-              style: TextStyle(fontSize: 13, color: cs.outline),
-            ),
+            Text('点一下听发音', style: TextStyle(fontSize: 13, color: cs.outline)),
           ],
         ),
       );
@@ -302,7 +297,7 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
                 child: Text(
                   q.word.en,
                   style: const TextStyle(
-                    fontSize: 19,
+                    fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -324,8 +319,7 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
           ],
           const SizedBox(height: 4),
           Text(q.word.zh, style: const TextStyle(fontSize: 15)),
-          if (q.word.example != null &&
-              q.word.example!.isNotEmpty) ...<Widget>[
+          if (q.word.example != null && q.word.example!.isNotEmpty) ...<Widget>[
             const SizedBox(height: 6),
             Text(
               q.word.example!,
@@ -350,7 +344,9 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
           width: double.infinity,
           child: FilledButton(
             onPressed: _saving ? null : _next,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
             child: Text(last ? '看结果' : '下一题'),
           ),
         ),
@@ -389,8 +385,9 @@ class _QuickQuizPageState extends State<QuickQuizPage> {
                 onPressed: () => Navigator.of(context).pop(true),
                 icon: const Icon(Icons.check),
                 label: const Text('好了'),
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
               ),
             ),
             if (wrong > 0) ...<Widget>[
@@ -476,7 +473,10 @@ class _OptionButton extends StatelessWidget {
       color: bg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: border, width: state == _OptState.idle ? 1 : 1.5),
+        side: BorderSide(
+          color: border,
+          width: state == _OptState.idle ? 1 : 1.5,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -500,10 +500,7 @@ class _OptionButton extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(fontSize: 16, color: fg),
-                ),
+                child: Text(text, style: TextStyle(fontSize: 16, color: fg)),
               ),
             ],
           ),

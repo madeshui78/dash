@@ -30,8 +30,7 @@ class StudySettings {
   }
 
   static Future<bool> clearedToday() async {
-    final String? v =
-        await DatabaseHelper.instance.getSetting(keyClearedDay);
+    final String? v = await DatabaseHelper.instance.getSetting(keyClearedDay);
     return v != null && v == await _today();
   }
 
@@ -83,9 +82,7 @@ class StudySettings {
   }
 
   static Future<void> setSpeechRate(double r) async {
-    final double v = r < minRate
-        ? minRate
-        : (r > maxRate ? maxRate : r);
+    final double v = r < minRate ? minRate : (r > maxRate ? maxRate : r);
     await DatabaseHelper.instance.setSetting(keyRate, v.toStringAsFixed(2));
   }
 

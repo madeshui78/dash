@@ -81,8 +81,10 @@ class WebArticleService {
       try {
         final List<PaperMeta> list = await PaperService.search(q);
         for (final PaperMeta paper in list.take(3)) {
-          final String text =
-              await PaperService.fetchText(paper, preferHtml: true);
+          final String text = await PaperService.fetchText(
+            paper,
+            preferHtml: true,
+          );
           if (text.length > 600) {
             return WebArticle(
               title: paper.title,

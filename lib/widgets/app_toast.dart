@@ -104,7 +104,8 @@ class _ToastHostState extends State<_ToastHost>
         },
         onHorizontalDragEnd: (DragEndDetails d) {
           // 向左划超过 48 就关掉
-          if (_dx < -48 || d.primaryVelocity != null && d.primaryVelocity! < -250) {
+          if (_dx < -48 ||
+              d.primaryVelocity != null && d.primaryVelocity! < -250) {
             _close();
           } else {
             setState(() => _dx = 0);
@@ -122,8 +123,10 @@ class _ToastHostState extends State<_ToastHost>
               borderRadius: BorderRadius.circular(14),
               elevation: 6,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 child: Text(
                   widget.message,
                   textAlign: TextAlign.center,

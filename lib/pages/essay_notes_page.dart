@@ -105,7 +105,7 @@ class _EssayNotesPageState extends State<EssayNotesPage> {
                       color: p.muted,
                     ),
                     const SizedBox(height: 12),
-                    Text('还没有批注', style: TextStyle(fontSize: 15, color: p.ink)),
+                    Text('还没有批注', style: TextStyle(fontSize: 14, color: p.ink)),
                     const SizedBox(height: 6),
                     Text(
                       '在作文里点一个词，底部「写批注」\n写完会按文章归到这里',
@@ -171,7 +171,7 @@ class _EssayNotesPageState extends State<EssayNotesPage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             height: 1.35,
                             color: p.ink,
@@ -218,7 +218,7 @@ class _EssayNotesPageState extends State<EssayNotesPage> {
                                   child: Text(
                                     n.word,
                                     style: TextStyle(
-                                      fontSize: 13.5,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: p.blue,
                                     ),

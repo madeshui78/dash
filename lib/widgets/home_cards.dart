@@ -39,17 +39,14 @@ class _CardHead extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: p.ink,
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  style: TextStyle(fontSize: 11, color: p.muted),
-                ),
+                Text(subtitle!, style: TextStyle(fontSize: 11, color: p.muted)),
               ],
             ],
           ),
@@ -137,9 +134,7 @@ class TodayCard extends StatelessWidget {
             _CardHead(
               icon: hasToday ? Icons.today : Icons.shuffle,
               title: hasToday ? '今天的 ${today.length} 个词' : '今天还没抽词',
-              subtitle: hasToday
-                  ? (loop ? '小循环' : '四步')
-                  : '$drawable 个未抽',
+              subtitle: hasToday ? (loop ? '小循环' : '四步') : '$drawable 个未抽',
               accent: p.word,
             ),
             const SizedBox(height: 12),
@@ -405,11 +400,7 @@ class _ModuleCard extends StatelessWidget {
                     color: color.withValues(alpha: enabled ? 0.12 : 0.06),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    icon,
-                    size: 19,
-                    color: enabled ? color : p.muted,
-                  ),
+                  child: Icon(icon, size: 19, color: enabled ? color : p.muted),
                 ),
                 const Spacer(),
                 Icon(
@@ -434,17 +425,14 @@ class _ModuleCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: enabled ? p.ink : p.muted,
               ),
             ),
             if (hint.isNotEmpty) ...<Widget>[
               const SizedBox(height: 2),
-              Text(
-                hint,
-                style: TextStyle(fontSize: 11, color: p.muted),
-              ),
+              Text(hint, style: TextStyle(fontSize: 11, color: p.muted)),
             ],
           ],
         ),

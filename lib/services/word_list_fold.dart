@@ -32,11 +32,7 @@ List<List<String>> foldWordListRows(List<List<String>> rows) {
 
   void flush() {
     if (en != null) {
-      out.add(<String>[
-        en,
-        zhBuf.join('；'),
-        if (phonetic != null) phonetic,
-      ]);
+      out.add(<String>[en, zhBuf.join('；'), if (phonetic != null) phonetic]);
     }
     zhBuf.clear();
   }
@@ -45,8 +41,7 @@ List<List<String>> foldWordListRows(List<List<String>> rows) {
     if (isEnLine(line)) {
       flush();
       // 词行末尾的 [音标] / 【音标】拆出去，别混进英文单词里
-      final Match? m =
-          RegExp(r'^(.*?)\s*[\[【](.+?)[\]】]\s*$').firstMatch(line);
+      final Match? m = RegExp(r'^(.*?)\s*[\[【](.+?)[\]】]\s*$').firstMatch(line);
       if (m != null && m.group(1)!.trim().isNotEmpty) {
         en = m.group(1)!.trim().replaceAll(RegExp(r'\s+'), ' ');
         phonetic = '[${m.group(2)}]';

@@ -80,14 +80,15 @@ class DigestAnswerCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: (groupColors[g.title] ?? p.blue)
-                            .withValues(alpha: 0.10),
+                        color: (groupColors[g.title] ?? p.blue).withValues(
+                          alpha: 0.10,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${g.title} ${g.words.length}',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: groupColors[g.title] ?? p.blue,
                         ),
                       ),
@@ -107,79 +108,82 @@ class DigestAnswerCard extends StatelessWidget {
                   : () => onItemTap!(result.items[i]),
               child: Container(
                 padding: const EdgeInsets.only(top: 12, bottom: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Container(
-                        width: 3,
-                        height: 16,
-                        margin: const EdgeInsets.only(top: 2, right: 8),
-                        decoration: BoxDecoration(
-                          color: groupColors[result.items[i].group] ?? p.blue,
-                          borderRadius: BorderRadius.circular(2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Container(
+                          width: 3,
+                          height: 16,
+                          margin: const EdgeInsets.only(top: 2, right: 8),
+                          decoration: BoxDecoration(
+                            color: groupColors[result.items[i].group] ?? p.blue,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Row(
-                              children: <Widget>[
-                                Text(
-                                  result.items[i].word,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: p.ink,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Row(
+                                children: <Widget>[
+                                  Text(
+                                    result.items[i].word,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: p.ink,
+                                    ),
+                                  ),
+                                  if (result
+                                      .items[i]
+                                      .group
+                                      .isNotEmpty) ...<Widget>[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      result.items[i].group,
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: p.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (result.items[i].meaning.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    result.items[i].meaning,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.45,
+                                      color: p.ink,
+                                    ),
                                   ),
                                 ),
-                                if (result.items[i].group.isNotEmpty) ...<Widget>[
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    result.items[i].group,
+                              if (result.items[i].memory.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    result.items[i].memory,
                                     style: TextStyle(
-                                      fontSize: 9.5,
+                                      fontSize: 12,
+                                      height: 1.45,
                                       color: p.muted,
                                     ),
                                   ),
-                                ],
-                              ],
-                            ),
-                            if (result.items[i].meaning.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  result.items[i].meaning,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    height: 1.45,
-                                    color: p.ink,
-                                  ),
                                 ),
-                              ),
-                            if (result.items[i].memory.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  result.items[i].memory,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    height: 1.45,
-                                    color: p.muted,
-                                  ),
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           if (result.path.isNotEmpty) ...<Widget>[
             const SizedBox(height: 8),
@@ -211,7 +215,7 @@ class DigestAnswerCard extends StatelessWidget {
                           Text(
                             '${i + 1}. ',
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               color: p.blue,
                               fontWeight: FontWeight.w600,
                             ),
@@ -220,7 +224,7 @@ class DigestAnswerCard extends StatelessWidget {
                             child: Text(
                               result.path[i],
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12,
                                 height: 1.45,
                                 color: p.ink,
                               ),

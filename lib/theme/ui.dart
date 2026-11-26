@@ -37,3 +37,26 @@ class UiGap {
   static const double md = 14;
   static const double lg = 20;
 }
+
+/// 字号只有这几档，新代码不要再写 12.5 / 13.5 这种中间值
+class UiText {
+  UiText._();
+
+  /// 说明、脚注、标签
+  static const double caption = 11;
+
+  /// 次要信息：作者、日期、提示
+  static const double secondary = 12;
+
+  /// 正文偏小：列表标题、词条
+  static const double bodySmall = 13;
+
+  /// 正文
+  static const double body = 14;
+
+  /// 小节标题
+  static const double section = 16;
+
+  /// 页面标题
+  static const double title = 18;
+}

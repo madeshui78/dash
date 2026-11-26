@@ -25,8 +25,8 @@ class _DigestRecordsPageState extends State<DigestRecordsPage> {
   }
 
   Future<void> _load() async {
-    final List<DigestRecord> list =
-        await DatabaseHelper.instance.getDigestRecords();
+    final List<DigestRecord> list = await DatabaseHelper.instance
+        .getDigestRecords();
     if (!mounted) return;
     setState(() {
       _items = list;
@@ -89,7 +89,7 @@ class _DigestRecordsPageState extends State<DigestRecordsPage> {
                       Text(
                         m.isUser ? '我' : 'AI',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: m.isUser ? p.blue : p.muted,
                         ),
                       ),
@@ -97,7 +97,7 @@ class _DigestRecordsPageState extends State<DigestRecordsPage> {
                       Text(
                         m.content,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 13,
                           height: 1.55,
                           color: p.ink,
                         ),
@@ -120,60 +120,65 @@ class _DigestRecordsPageState extends State<DigestRecordsPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? Center(
-                  child: Text(
-                    '还没有提交记录',
-                    style: TextStyle(fontSize: 13, color: p.muted),
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  children: <Widget>[
-                    Text(
-                      '每次在错词本点「提交今日错词」，发给 AI 的原文都会留一份。',
-                      style: TextStyle(fontSize: 12, color: p.muted),
+          ? Center(
+              child: Text(
+                '还没有提交记录',
+                style: TextStyle(fontSize: 13, color: p.muted),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: <Widget>[
+                Text(
+                  '每次在错词本点「提交今日错词」，发给 AI 的原文都会留一份。',
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                const SizedBox(height: 12),
+                for (final DigestRecord r in _items)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: p.surface,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(height: 12),
-                    for (final DigestRecord r in _items)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      onTap: () => _open(r),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      leading: Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: p.surface,
-                          borderRadius: BorderRadius.circular(14),
+                          color: p.blue.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
                         ),
-                        child: ListTile(
-                          onTap: () => _open(r),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          leading: Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: p.blue.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child:
-                                Icon(Icons.psychology_outlined,
-                                    size: 18, color: p.blue),
-                          ),
-                          title: Text(
-                            '${_time(r.createdAt)} · ${r.itemCount} 条',
-                            style: TextStyle(fontSize: 14, color: p.ink),
-                          ),
-                          subtitle: Text(
-                            r.payload.replaceAll('\n', ' '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11, color: p.muted),
-                          ),
-                          trailing: Icon(Icons.chevron_right,
-                              size: 18, color: p.muted),
+                        child: Icon(
+                          Icons.psychology_outlined,
+                          size: 18,
+                          color: p.blue,
                         ),
                       ),
-                  ],
-                ),
+                      title: Text(
+                        '${_time(r.createdAt)} · ${r.itemCount} 条',
+                        style: TextStyle(fontSize: 14, color: p.ink),
+                      ),
+                      subtitle: Text(
+                        r.payload.replaceAll('\n', ' '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: p.muted),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: p.muted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

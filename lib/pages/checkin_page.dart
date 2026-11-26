@@ -68,8 +68,7 @@ class _CheckInPageState extends State<CheckInPage> {
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
     final DateTime now = DateTime.now();
-    final bool thisMonth =
-        _month.year == now.year && _month.month == now.month;
+    final bool thisMonth = _month.year == now.year && _month.month == now.month;
 
     return Scaffold(
       backgroundColor: p.canvas,
@@ -89,10 +88,7 @@ class _CheckInPageState extends State<CheckInPage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '天连续打卡',
-                    style: TextStyle(fontSize: 12, color: p.muted),
-                  ),
+                  Text('天连续打卡', style: TextStyle(fontSize: 12, color: p.muted)),
                   const SizedBox(height: 32),
 
                   Row(
@@ -100,7 +96,7 @@ class _CheckInPageState extends State<CheckInPage> {
                       Text(
                         '${_month.year} 年 ${_month.month} 月',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: p.ink,
                         ),
@@ -217,7 +213,7 @@ class _CheckInButtonState extends State<_CheckInButton>
                   Text(
                     widget.label,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: ModulePalette.onAccent(widget.color),
                     ),

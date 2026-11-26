@@ -66,8 +66,9 @@ class _ReviewPageState extends State<ReviewPage> {
       _correct = 0;
       _retried.clear();
     });
-    final List<Word> words = await DatabaseHelper.instance
-        .getDueWords(track: TrackStore.current.value);
+    final List<Word> words = await DatabaseHelper.instance.getDueWords(
+      track: TrackStore.current.value,
+    );
     if (!mounted) return;
     setState(() {
       _queue = words;
@@ -185,10 +186,14 @@ class _ReviewPageState extends State<ReviewPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               // 已答可能大于计划数（有答错重做的），这是正常的
-              Text('已答 $_reviewed / 计划 $_initialCount',
-                  style: TextStyle(fontSize: 12, color: cs.outline)),
-              Text('本次答对 $_correct',
-                  style: TextStyle(fontSize: 12, color: cs.outline)),
+              Text(
+                '已答 $_reviewed / 计划 $_initialCount',
+                style: TextStyle(fontSize: 12, color: cs.outline),
+              ),
+              Text(
+                '本次答对 $_correct',
+                style: TextStyle(fontSize: 12, color: cs.outline),
+              ),
             ],
           ),
           Expanded(
@@ -247,8 +252,10 @@ class _ReviewPageState extends State<ReviewPage> {
           children: <Widget>[
             Icon(Icons.flag_outlined, size: 72, color: cs.primary),
             const SizedBox(height: 20),
-            const Text('这一轮复习完成',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+            const Text(
+              '这一轮复习完成',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -286,9 +293,14 @@ class _ReviewPageState extends State<ReviewPage> {
     final ColorScheme cs = Theme.of(context).colorScheme;
     return Column(
       children: <Widget>[
-        Text(value,
-            style: TextStyle(
-                fontSize: 26, fontWeight: FontWeight.w500, color: cs.primary)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w500,
+            color: cs.primary,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(label, style: TextStyle(fontSize: 12, color: cs.outline)),
       ],

@@ -88,8 +88,8 @@ class _DigestViewState extends State<DigestView> {
       setState(() => _loading = false);
       return;
     }
-    final List<ChatMessage> msgs =
-        await DatabaseHelper.instance.getChatMessages(sessionId: s.id);
+    final List<ChatMessage> msgs = await DatabaseHelper.instance
+        .getChatMessages(sessionId: s.id);
     int? lastDigest;
     for (final ChatMessage m in msgs) {
       if (m.content.startsWith(_prefix)) lastDigest = m.id;
@@ -120,8 +120,9 @@ class _DigestViewState extends State<DigestView> {
     for (final ChatMessage m in _messages) {
       final int? mid = m.id;
       if (mid == null || !m.content.startsWith(_prefix)) continue;
-      final DigestResult? r =
-          DigestResult.tryParse(m.content.substring(_prefix.length));
+      final DigestResult? r = DigestResult.tryParse(
+        m.content.substring(_prefix.length),
+      );
       if (r == null) continue;
       _results[mid] = r;
       for (int i = 0; i < r.items.length; i++) {
@@ -204,8 +205,7 @@ class _DigestViewState extends State<DigestView> {
     _qaInput.clear();
     _scrollQa();
     if (_qaMessageId != null) {
-      await DatabaseHelper.instance
-          .addDigestQa(_qaMessageId!, 'user', text);
+      await DatabaseHelper.instance.addDigestQa(_qaMessageId!, 'user', text);
     }
 
     try {
@@ -217,8 +217,11 @@ class _DigestViewState extends State<DigestView> {
       );
       if (!mounted) return;
       if (_qaMessageId != null) {
-        await DatabaseHelper.instance
-            .addDigestQa(_qaMessageId!, 'assistant', reply);
+        await DatabaseHelper.instance.addDigestQa(
+          _qaMessageId!,
+          'assistant',
+          reply,
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -287,8 +290,7 @@ class _DigestViewState extends State<DigestView> {
     final double max = _scroll.position.maxScrollExtent;
     final int idx = max <= 0
         ? 0
-        : ((_scroll.offset / max).clamp(0.0, 1.0) * (_rail.length - 1))
-            .round();
+        : ((_scroll.offset / max).clamp(0.0, 1.0) * (_rail.length - 1)).round();
     if (idx != _active) setState(() => _active = idx);
   }
 
@@ -354,11 +356,9 @@ class _DigestViewState extends State<DigestView> {
                   spacing: 8,
                   runSpacing: 8,
                   children: <Widget>[
-                    if (local?.phonetic != null &&
-                        local!.phonetic!.isNotEmpty)
+                    if (local?.phonetic != null && local!.phonetic!.isNotEmpty)
                       _chip(p, local.phonetic!, p.blue),
-                    if (item.group.isNotEmpty)
-                      _chip(p, item.group, p.violet),
+                    if (item.group.isNotEmpty) _chip(p, item.group, p.violet),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -379,7 +379,11 @@ class _DigestViewState extends State<DigestView> {
                   const SizedBox(height: 4),
                   Text(
                     item.memory,
-                    style: TextStyle(fontSize: 13, height: 1.55, color: p.muted),
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.55,
+                      color: p.muted,
+                    ),
                   ),
                 ],
                 if (local?.example != null &&
@@ -437,7 +441,7 @@ class _DigestViewState extends State<DigestView> {
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(text, style: TextStyle(fontSize: 11.5, color: color)),
+      child: Text(text, style: TextStyle(fontSize: 12, color: color)),
     );
   }
 
@@ -451,61 +455,55 @@ class _DigestViewState extends State<DigestView> {
         Column(
           children: <Widget>[
             Expanded(
-          child: _messages.isEmpty
-              ? _empty(p)
-              : Stack(
-                  children: <Widget>[
-                    NotificationListener<ScrollNotification>(
-                      onNotification: (ScrollNotification n) {
-                        _syncActive();
-                        return false;
-                      },
-                      child: ListView(
-                        key: _listKey,
-                        controller: _scroll,
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                        children: <Widget>[
-                          if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                _error!,
-                                style: TextStyle(fontSize: 12, color: p.wrong),
-                              ),
-                            ),
-                          for (final ChatMessage m in _messages) _item(m),
-                        ],
-                      ),
-                    ),
-                    if (_rail.isNotEmpty)
-                      Positioned(
-                        top: 10,
-                        bottom: 10,
-                        // 离右边缘留 12px：太贴边会被系统返回手势吃掉
-                        right: 12,
-                        width: 30,
-                        child: _RailBar(
-                          entries: _rail,
-                          active: _active,
-                          onJump: _jumpTo,
+              child: _messages.isEmpty
+                  ? _empty(p)
+                  : Stack(
+                      children: <Widget>[
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification n) {
+                            _syncActive();
+                            return false;
+                          },
+                          child: ListView(
+                            key: _listKey,
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                            children: <Widget>[
+                              if (_error != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: p.wrong,
+                                    ),
+                                  ),
+                                ),
+                              for (final ChatMessage m in _messages) _item(m),
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                ),
+                        if (_rail.isNotEmpty)
+                          Positioned(
+                            top: 10,
+                            bottom: 10,
+                            // 离右边缘留 12px：太贴边会被系统返回手势吃掉
+                            right: 12,
+                            width: 30,
+                            child: _RailBar(
+                              entries: _rail,
+                              active: _active,
+                              onJump: _jumpTo,
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
         ),
-      ],
-    ),
-        Positioned(
-          right: 40,
-          bottom: 18,
-          child: _askFab(p),
-        ),
-        if (_panelOpen)
-          Positioned(
-            right: 10,
-            bottom: 76,
-            child: _qaPanel(p),
-          ),
+        Positioned(right: 40, bottom: 18, child: _askFab(p)),
+        if (_panelOpen) Positioned(right: 10, bottom: 76, child: _qaPanel(p)),
       ],
     );
   }
@@ -522,10 +520,7 @@ class _DigestViewState extends State<DigestView> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 10),
-            Text(
-              '正在整理错词…',
-              style: TextStyle(fontSize: 13, color: p.muted),
-            ),
+            Text('正在整理错词…', style: TextStyle(fontSize: 13, color: p.muted)),
           ],
         ),
       );
@@ -591,8 +586,8 @@ class _DigestViewState extends State<DigestView> {
             height: 1.6,
             color: user
                 ? (p.brightness == Brightness.light
-                    ? Colors.white
-                    : const Color(0xFF06101F))
+                      ? Colors.white
+                      : const Color(0xFF06101F))
                 : p.ink,
           ),
         ),
@@ -648,7 +643,7 @@ class _DigestViewState extends State<DigestView> {
                         '就这次复盘继续问\n比如「accept 和 receive 的区别」',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 12,
                           height: 1.6,
                           color: p.muted,
                         ),
@@ -667,8 +662,9 @@ class _DigestViewState extends State<DigestView> {
                                 const SizedBox(
                                   width: 12,
                                   height: 12,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -754,8 +750,9 @@ class _DigestViewState extends State<DigestView> {
     return Align(
       alignment: user ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 80),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width - 80,
+        ),
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
         decoration: BoxDecoration(
@@ -765,12 +762,12 @@ class _DigestViewState extends State<DigestView> {
         child: Text(
           m.content,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 13,
             height: 1.55,
             color: user
                 ? (p.brightness == Brightness.light
-                    ? Colors.white
-                    : const Color(0xFF06101F))
+                      ? Colors.white
+                      : const Color(0xFF06101F))
                 : p.ink,
           ),
         ),

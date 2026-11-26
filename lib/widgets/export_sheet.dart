@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app_toast.dart';
+
 import 'package:share_plus/share_plus.dart';
 
 import '../db/database_helper.dart';
@@ -113,8 +114,7 @@ class _ExportSheetState extends State<_ExportSheet> {
       final Directory dir = await getTemporaryDirectory();
       final String stamp = _stamp();
       final String name = '单词_${_scope.label}_$stamp.${_format.ext}';
-      final File file =
-          File('${dir.path}${Platform.pathSeparator}$name');
+      final File file = File('${dir.path}${Platform.pathSeparator}$name');
       await file.writeAsString(text);
 
       if (!mounted) return;
@@ -219,11 +219,10 @@ class _ExportSheetState extends State<_ExportSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.ios_share),
-                label: Text(_count == null
-                    ? '导出'
-                    : '导出 $_count 个词'),
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                label: Text(_count == null ? '导出' : '导出 $_count 个词'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
               ),
             ),
             const SizedBox(height: 8),

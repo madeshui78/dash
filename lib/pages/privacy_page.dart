@@ -66,8 +66,12 @@ class PrivacyPage extends StatelessWidget {
 
             _h('四、AI 功能说明（重要）'),
             _p('AI 问答、AI 造句、词根词缀拆解、例句补全属于可选功能，有两种工作方式，由你在「设置 - AI 模型」中自行选择：'),
-            _p('1. 本地 Ollama：请求只发送到你指定的局域网地址（例如 http://192.168.1.2:11434），由你自己的电脑处理，不经过任何第三方服务器。'),
-            _p('2. DeepSeek 云端：只有你自行填写自己的 DeepSeek API Key 后才会启用。启用后你输入的提问内容会通过 HTTPS 发送至 api.deepseek.com 用于生成结果。该服务由杭州深度求索人工智能基础技术研究有限公司提供，其数据处理规则适用其公开的隐私政策。'),
+            _p(
+              '1. 本地 Ollama：请求只发送到你指定的局域网地址（例如 http://192.168.1.2:11434），由你自己的电脑处理，不经过任何第三方服务器。',
+            ),
+            _p(
+              '2. DeepSeek 云端：只有你自行填写自己的 DeepSeek API Key 后才会启用。启用后你输入的提问内容会通过 HTTPS 发送至 api.deepseek.com 用于生成结果。该服务由杭州深度求索人工智能基础技术研究有限公司提供，其数据处理规则适用其公开的隐私政策。',
+            ),
             _p('不启用任何 AI 功能，不影响背单词、复习、导入等核心功能。'),
 
             _h('五、我们申请了哪些系统权限'),
@@ -77,8 +81,12 @@ class PrivacyPage extends StatelessWidget {
             _p('本应用未申请相机、麦克风、通讯录、短信、位置、电话状态等权限。'),
 
             _h('六、第三方组件'),
-            _p('本应用基于 Flutter 跨平台框架开发，使用了 sqflite（本地数据库）、path_provider（本地路径）、flutter_tts（系统语音合成）、file_picker（文件选择）、share_plus（分享导出）、archive 与 xml（压缩包与表格解析）、syncfusion_flutter_pdf（PDF 本地解析）、http（网络请求）等开源组件。'),
-            _p('这些组件均在你的手机本地运行。本应用不包含广告 SDK 或用户行为统计 SDK，我们不会向任何第三方出售或共享你的个人信息。'),
+            _p(
+              '本应用基于 Flutter 跨平台框架开发，使用了 sqflite（本地数据库）、path_provider（本地路径）、flutter_tts（系统语音合成）、file_picker（文件选择）、share_plus（分享导出）、archive 与 xml（压缩包与表格解析）、syncfusion_flutter_pdf（PDF 本地解析）、http（网络请求）等开源组件。',
+            ),
+            _p(
+              '这些组件均在你的手机本地运行。本应用不包含广告 SDK 或用户行为统计 SDK，我们不会向任何第三方出售或共享你的个人信息。',
+            ),
 
             _h('七、你的权利'),
             _p('你可以随时在应用内查看、修改、删除单词与学习记录，可导出备份文件自行保存，卸载应用即可删除全部本地数据。'),
@@ -133,7 +141,7 @@ class PrivacyPage extends StatelessWidget {
       padding: const EdgeInsets.only(top: 18, bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
   }

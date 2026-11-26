@@ -17,8 +17,7 @@ class CheckInStore {
   static String todayKey() => dayKey(DateTime.now());
 
   static Future<Set<String>> all() async {
-    final String? raw =
-        await DatabaseHelper.instance.getSetting(key);
+    final String? raw = await DatabaseHelper.instance.getSetting(key);
     if (raw == null || raw.trim().isEmpty) return <String>{};
     return raw
         .split(',')

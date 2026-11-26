@@ -36,11 +36,53 @@ class DigestQueue {
   }
 
   static const Set<String> _stop = <String>{
-    'a', 'an', 'the', 'that', 'this', 'these', 'those', 'and', 'or', 'but',
-    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did',
-    'on', 'in', 'at', 'to', 'of', 'for', 'with', 'when', 'while', 'as',
-    'it', 'we', 'they', 'he', 'she', 'i', 'you', 'my', 'our', 'their',
-    'his', 'her', 'not', 'so', 'if', 'than', 'then',
+    'a',
+    'an',
+    'the',
+    'that',
+    'this',
+    'these',
+    'those',
+    'and',
+    'or',
+    'but',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'being',
+    'do',
+    'does',
+    'did',
+    'on',
+    'in',
+    'at',
+    'to',
+    'of',
+    'for',
+    'with',
+    'when',
+    'while',
+    'as',
+    'it',
+    'we',
+    'they',
+    'he',
+    'she',
+    'i',
+    'you',
+    'my',
+    'our',
+    'their',
+    'his',
+    'her',
+    'not',
+    'so',
+    'if',
+    'than',
+    'then',
   };
 
   /// 标记短语常常带着 that / and / on 这类虚词，去掉首尾，
@@ -64,8 +106,11 @@ class DigestQueue {
   static Future<DigestTask?> buildToday(String track) async {
     final DatabaseHelper db = DatabaseHelper.instance;
     final DateTime now = DateTime.now();
-    final int start = DateTime(now.year, now.month, now.day)
-        .millisecondsSinceEpoch;
+    final int start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).millisecondsSinceEpoch;
 
     final List<EssayMarkHit> marks = await db.getEssayMarkHits(track: track);
     final List<Word> words = await db.getWrongWords(track: track);

@@ -193,7 +193,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                           '输入一个词或短语。\n释义、例句、搭配都由 AI 生成。',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             height: 1.7,
                             color: p.muted,
                           ),
@@ -249,14 +249,14 @@ class _WordExplainPageState extends State<WordExplainPage> {
           Text(phonetic, style: TextStyle(fontSize: 14, color: p.blue)),
         ],
         const SizedBox(height: 4),
-        Text('AI 生成 · 仅供参考', style: TextStyle(fontSize: 10.5, color: p.muted)),
+        Text('AI 生成 · 仅供参考', style: TextStyle(fontSize: 11, color: p.muted)),
         const SizedBox(height: 12),
         Divider(height: 1, color: p.line),
         if (senses.isEmpty) ...[
           const SizedBox(height: 16),
           Text(
             note.isEmpty ? '没有拿到释义，换个词再试。' : note,
-            style: TextStyle(fontSize: 13.5, height: 1.7, color: p.ink),
+            style: TextStyle(fontSize: 14, height: 1.7, color: p.ink),
           ),
         ],
         for (int i = 0; i < senses.length; i++) _sense(p, senses[i], i),
@@ -280,11 +280,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                 Expanded(
                   child: Text(
                     note,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.65,
-                      color: p.ink,
-                    ),
+                    style: TextStyle(fontSize: 13, height: 1.65, color: p.ink),
                   ),
                 ),
               ],
@@ -335,7 +331,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                     ),
                     child: Text(
                       pos,
-                      style: TextStyle(fontSize: 10.5, color: p.blue),
+                      style: TextStyle(fontSize: 11, color: p.blue),
                     ),
                   ),
                 Text(
@@ -352,7 +348,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                   Text(
                     en,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       height: 1.55,
                       color: p.muted,
                     ),
@@ -375,7 +371,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                         Text(
                           example,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             height: 1.55,
                             fontStyle: FontStyle.italic,
                             color: p.ink,
@@ -386,7 +382,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
                           Text(
                             exZh,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               height: 1.5,
                               color: p.muted,
                             ),
@@ -531,7 +527,7 @@ class _WordExplainPageState extends State<WordExplainPage> {
               Expanded(
                 child: Text(
                   s,
-                  style: TextStyle(fontSize: 12.5, height: 1.6, color: p.ink),
+                  style: TextStyle(fontSize: 13, height: 1.6, color: p.ink),
                 ),
               ),
             ],

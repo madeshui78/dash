@@ -59,8 +59,10 @@ class WordEnrichService {
         );
       }
 
-      final List<String> batch =
-          queue.skip(i).take(AiService.batchSize).toList();
+      final List<String> batch = queue
+          .skip(i)
+          .take(AiService.batchSize)
+          .toList();
 
       List<WordEntry>? got;
       for (int attempt = 0; attempt < 3 && got == null; attempt++) {

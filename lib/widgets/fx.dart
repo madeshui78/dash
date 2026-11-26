@@ -71,7 +71,10 @@ Widget applyFx(TapFx fx, double t, Widget child) {
       return Transform.rotate(angle: -0.38 * w, child: child);
     case TapFx.wave:
       // 两下脉冲，像声波
-      return Transform.scale(scale: 1 + 0.3 * math.sin(2 * math.pi * t).abs(), child: child);
+      return Transform.scale(
+        scale: 1 + 0.3 * math.sin(2 * math.pi * t).abs(),
+        child: child,
+      );
     case TapFx.dots:
       return Transform.translate(
         offset: Offset(0, -5 * math.sin(2 * math.pi * t).abs()),

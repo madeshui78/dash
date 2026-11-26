@@ -171,9 +171,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: p.surface,
         side: BorderSide(color: p.line),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         showCheckmark: false,
       ),
@@ -181,8 +179,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: p.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         hintStyle: TextStyle(color: p.muted, fontSize: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius),
@@ -214,18 +214,12 @@ class AppTheme {
       ),
 
       listTileTheme: ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         iconColor: p.muted,
         textColor: p.ink,
       ),
 
-      dividerTheme: DividerThemeData(
-        color: p.line,
-        thickness: 1,
-        space: 1,
-      ),
+      dividerTheme: DividerThemeData(color: p.line, thickness: 1, space: 1),
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

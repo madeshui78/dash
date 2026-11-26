@@ -24,11 +24,7 @@ class LoopSessionPage extends StatefulWidget {
   /// true = 今日抽词（要写回抽词池，标记这批学完）
   final bool isDaily;
 
-  const LoopSessionPage({
-    super.key,
-    required this.words,
-    this.isDaily = true,
-  });
+  const LoopSessionPage({super.key, required this.words, this.isDaily = true});
 
   @override
   State<LoopSessionPage> createState() => _LoopSessionPageState();
@@ -148,8 +144,7 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
       return;
     }
 
-    final bool ok =
-        typed.toLowerCase() == _word.en.trim().toLowerCase();
+    final bool ok = typed.toLowerCase() == _word.en.trim().toLowerCase();
     final int id = _word.id!;
 
     if (_recalling) {
@@ -253,8 +248,10 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
     for (final Word w in widget.words) {
       // 中途退出时已经记过的，别再记一遍
       if (_committed.contains(w.id!)) continue;
-      await DatabaseHelper.instance
-          .finishDrawnWord(w, _results[w.id!] ?? false);
+      await DatabaseHelper.instance.finishDrawnWord(
+        w,
+        _results[w.id!] ?? false,
+      );
       _committed.add(w.id!);
     }
     // 走完了，草稿作废
@@ -280,15 +277,18 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
         final int saved = await _commitPartial();
         await _saveDraft();
         if (!context.mounted) return;
-        final bool leave = await showDialog<bool>(
+        final bool leave =
+            await showDialog<bool>(
               context: context,
               builder: (BuildContext ctx) => AlertDialog(
                 title: const Text('先歇会儿？'),
-                content: Text(saved > 0
-                    ? '已经答过的 $saved 个词记下了，错的进了错词本。'
-                        '剩下的存着，下次点「开始学」接着第 ${_i + 1} 个继续。'
-                    : '进度存下来了，下次点「开始学」'
-                        '会接着第 ${_i + 1} 个词继续。'),
+                content: Text(
+                  saved > 0
+                      ? '已经答过的 $saved 个词记下了，错的进了错词本。'
+                            '剩下的存着，下次点「开始学」接着第 ${_i + 1} 个继续。'
+                      : '进度存下来了，下次点「开始学」'
+                            '会接着第 ${_i + 1} 个词继续。',
+                ),
                 actions: <Widget>[
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(false),
@@ -491,7 +491,10 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
                   Center(
                     child: Text(
                       w.phonetic!,
-                      style: TextStyle(fontSize: 15, color: cs.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -501,7 +504,10 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
                     child: Text(
                       w.zh.isEmpty ? '' : w.zh,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, color: cs.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -520,17 +526,16 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: BoxDecoration(
         color: cs.surface,
-        border: Border(
-          top: BorderSide(color: cs.outlineVariant),
-        ),
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
       ),
       child: SafeArea(
         top: false,
         child: _answered
             ? FilledButton(
                 onPressed: _saving ? null : _advance,
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
                 child: const Text('下一个'),
               )
             : Row(
@@ -577,13 +582,14 @@ class _LoopSessionPageState extends State<LoopSessionPage> {
             const SizedBox(height: 12),
             Text(
               '$_total 个词里记住了 $ok 个',
-              style: TextStyle(fontSize: 15, color: cs.onSurfaceVariant),
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 28),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style:
-                  FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
               child: const Text('好'),
             ),
           ],

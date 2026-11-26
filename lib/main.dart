@@ -409,7 +409,7 @@ class _NavItem extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               color: selected ? color : p.muted,
             ),
@@ -695,7 +695,7 @@ class _DrawerRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label,
-                      style: TextStyle(fontSize: 15, color: p.ink),
+                      style: TextStyle(fontSize: 14, color: p.ink),
                     ),
                   ),
                   Icon(Icons.chevron_right, size: 17, color: p.line),

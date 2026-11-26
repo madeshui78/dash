@@ -280,7 +280,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
         text,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: on ? FontWeight.w600 : FontWeight.w400,
           color: on ? p.ink : p.muted,
         ),
@@ -306,7 +306,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('论文/文章，越具体越准', style: TextStyle(fontSize: 11.5, color: p.muted)),
+        Text('论文/文章，越具体越准', style: TextStyle(fontSize: 12, color: p.muted)),
         const SizedBox(height: 6),
         TextField(
           controller: _q,
@@ -315,7 +315,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           style: const TextStyle(fontSize: 13.5),
           decoration: InputDecoration(
             hintText: '例如：英语学习投入 的实证研究',
-            hintStyle: TextStyle(fontSize: 12.5, color: p.muted),
+            hintStyle: TextStyle(fontSize: 13, color: p.muted),
             filled: true,
             fillColor: p.surface,
             contentPadding: const EdgeInsets.symmetric(
@@ -359,7 +359,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           child: Text(
             '输入一句需求，点搜索。\n「精读」先看结构和结论，「原文」直接读全文。',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, height: 1.7, color: p.muted),
+            style: TextStyle(fontSize: 13, height: 1.7, color: p.muted),
           ),
         ),
       );
@@ -371,7 +371,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           _tab == 0
               ? '找到 ${_results.length} 篇，点一篇看精读'
               : '找到 ${_results.length} 篇，点一篇读原文',
-          style: TextStyle(fontSize: 11.5, color: p.muted),
+          style: TextStyle(fontSize: 12, color: p.muted),
         ),
         const SizedBox(height: 8),
         for (int i = 0; i < _results.length; i++) _card(p, _results[i], i),
@@ -421,7 +421,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
                 m.abstract,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11.5, height: 1.5, color: p.muted),
+                style: TextStyle(fontSize: 12, height: 1.5, color: p.muted),
               ),
               const SizedBox(height: 6),
             ],
@@ -429,7 +429,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
               '${m.authorsLine} · ${m.shortMeta}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10.5, color: p.muted),
+              style: TextStyle(fontSize: 11, color: p.muted),
             ),
             const SizedBox(height: 6),
             Row(
@@ -491,11 +491,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
                   Expanded(
                     child: Text(
                       s,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.6,
-                        color: p.ink,
-                      ),
+                      style: TextStyle(fontSize: 13, height: 1.6, color: p.ink),
                     ),
                   ),
                 ],
@@ -540,7 +536,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
         const SizedBox(height: 8),
         Text(m.authorsLine, style: TextStyle(fontSize: 12, color: p.muted)),
         const SizedBox(height: 4),
-        Text(m.shortMeta, style: TextStyle(fontSize: 11.5, color: p.muted)),
+        Text(m.shortMeta, style: TextStyle(fontSize: 12, color: p.muted)),
         if (m.doi.isNotEmpty) ...<Widget>[
           const SizedBox(height: 6),
           GestureDetector(
@@ -550,7 +546,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
             },
             child: Text(
               'DOI: ${m.doi}',
-              style: TextStyle(fontSize: 11.5, color: p.blue),
+              style: TextStyle(fontSize: 12, color: p.blue),
             ),
           ),
         ],
@@ -563,7 +559,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           ),
           child: Text(
             (d['summary'] ?? '').toString(),
-            style: TextStyle(fontSize: 12.5, height: 1.65, color: p.ink),
+            style: TextStyle(fontSize: 13, height: 1.65, color: p.ink),
           ),
         ),
         if ((d['abstract_zh'] ?? '').toString().isNotEmpty) ...<Widget>[
@@ -579,7 +575,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
           const SizedBox(height: 6),
           Text(
             d['abstract_zh'].toString(),
-            style: TextStyle(fontSize: 12.5, height: 1.65, color: p.ink),
+            style: TextStyle(fontSize: 13, height: 1.65, color: p.ink),
           ),
         ],
         section('研究问题', _list('questions')),
@@ -601,7 +597,7 @@ class _PaperSearchPageState extends State<PaperSearchPage> {
               padding: const EdgeInsets.only(bottom: 6),
               child: RichText(
                 text: TextSpan(
-                  style: TextStyle(fontSize: 12.5, height: 1.55, color: p.ink),
+                  style: TextStyle(fontSize: 13, height: 1.55, color: p.ink),
                   children: <TextSpan>[
                     TextSpan(
                       text: '${t['en']}  ',
