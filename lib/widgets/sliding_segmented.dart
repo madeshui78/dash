@@ -4,6 +4,7 @@
 // 选项多到换行、或宽度差异很大时不要用，色块会跳得很难看。
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/module_palette.dart';
 
@@ -70,7 +71,11 @@ class SlidingSegmented extends StatelessWidget {
                     Expanded(
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => onChanged(i),
+                        onTap: () {
+                          if (i == index) return;
+                          HapticFeedback.selectionClick();
+                          onChanged(i);
+                        },
                         child: SizedBox(
                           height: height - padding * 2,
                           child: Center(child: children[i]),
