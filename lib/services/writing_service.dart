@@ -81,6 +81,38 @@ class WritingFeedback {
   }
 }
 
+class WritingScale {
+  final String id;
+  final String label;
+  final double maxScore;
+  final String standard;
+
+  const WritingScale({
+    required this.id,
+    required this.label,
+    required this.maxScore,
+    required this.standard,
+  });
+}
+
+/// 评分标准由用户选，不写死四六级
+const List<WritingScale> writingScales = <WritingScale>[
+  WritingScale(id: 'primary', label: '小学', maxScore: 10, standard: '小学英语作文'),
+  WritingScale(id: 'junior', label: '初中', maxScore: 15, standard: '中考英语作文'),
+  WritingScale(id: 'senior', label: '高中', maxScore: 25, standard: '高考英语作文'),
+  WritingScale(id: 'cet4', label: '四级', maxScore: 15, standard: '大学英语四级写作'),
+  WritingScale(id: 'cet6', label: '六级', maxScore: 15, standard: '大学英语六级写作'),
+  WritingScale(id: 'upgrade', label: '专升本', maxScore: 15, standard: '专升本英语写作'),
+  WritingScale(id: 'postgrad', label: '考研', maxScore: 20, standard: '考研英语写作'),
+];
+
+WritingScale writingScaleById(String? id) {
+  for (final WritingScale s in writingScales) {
+    if (s.id == id) return s;
+  }
+  return writingScales[3];
+}
+
 class WritingService {
   WritingService._();
 
@@ -88,7 +120,7 @@ class WritingService {
       '你是英语写作阅卷老师，熟悉四六级和专升本评分标准。'
       '只输出一个合法的 JSON 对象，不要输出解释、Markdown 或代码块。'
       'JSON 结构：'
-      '{"score": 0-15 的数字, "level": "档次说明", '
+      '{"score": 按题目给定满分的数字, "level": "档次说明", '
       '"good": ["写得好的地方"], '
       '"issues": [{"quote": "原文片段", "fix": "建议改法", "why": "原因"}], '
       '"rewrite": "改写后的全文", "advice": "下一步怎么练"}';
@@ -96,6 +128,7 @@ class WritingService {
   static Future<WritingFeedback> correct({
     required String topic,
     required String content,
+    required WritingScale scale,
   }) async {
     final AiConfig cfg = await AiService.loadConfig();
     if (cfg.deepseekKey.trim().isEmpty) {
@@ -103,9 +136,10 @@ class WritingService {
     }
 
     final String ask =
+        '评分标准：${scale.standard}，满分 ${scale.maxScore.toStringAsFixed(0)} 分。\n'
         '题目/要求：${topic.trim().isEmpty ? '未提供，按通用议论文评分' : topic.trim()}\n'
         '作文正文：\n$content\n\n'
-        '请按 15 分制打分，指出 3-6 处具体问题（引用原文片段），'
+        '请严格按该标准的满分打分，指出 3-6 处具体问题（引用原文片段），'
         '并给出改写全文。只输出 JSON。';
 
     final String raw = await AiService.chat(cfg, <ChatMessage>[

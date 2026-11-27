@@ -297,7 +297,11 @@ class TodayTaskCard extends StatelessWidget {
   final int newCount;
   final int dueCount;
   final int catchUpCount;
+
+  /// 受上限限制没排进来的数量
+  final int moreCount;
   final VoidCallback onStart;
+  final VoidCallback onAll;
   final VoidCallback onQuiz;
 
   const TodayTaskCard({
@@ -306,14 +310,16 @@ class TodayTaskCard extends StatelessWidget {
     required this.dueCount,
     required this.catchUpCount,
     required this.onStart,
+    required this.onAll,
     required this.onQuiz,
+    this.moreCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
     final int total = newCount + dueCount + catchUpCount;
-    final bool done = total == 0;
+    final bool empty = total == 0;
 
     final List<String> parts = <String>[
       if (newCount > 0) '$newCount 新词',
@@ -335,13 +341,13 @@ class TodayTaskCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Icon(
-                done ? Icons.check_circle_outline : Icons.today_outlined,
+                empty ? Icons.check_circle_outline : Icons.today_outlined,
                 size: 18,
-                color: done ? p.green : p.word,
+                color: empty ? p.muted : p.word,
               ),
               const SizedBox(width: 6),
               Text(
-                done ? '今天的词清完了' : '今日任务',
+                empty ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了') : '今日任务',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -350,14 +356,16 @@ class TodayTaskCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                done ? '' : '$total 个',
+                empty ? '' : '$total 个',
                 style: TextStyle(fontSize: 11, color: p.muted),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            done ? '想多背就再抽一组，别硬撑' : parts.join(' · '),
+            empty
+                ? (moreCount > 0 ? '还有 $moreCount 个在等着，可以全部加入' : '想多背就再抽一组，别硬撑')
+                : parts.join(' · '),
             style: TextStyle(fontSize: 12, color: p.muted),
           ),
           const SizedBox(height: 12),
@@ -367,11 +375,17 @@ class TodayTaskCard extends StatelessWidget {
                 child: SizedBox(
                   height: 42,
                   child: FilledButton.icon(
-                    onPressed: onStart,
-                    icon: Icon(done ? Icons.bolt : Icons.play_arrow, size: 18),
-                    label: Text(done ? '再练一组' : '开始'),
+                    onPressed: empty
+                        ? (moreCount > 0 ? onAll : onQuiz)
+                        : onStart,
+                    icon: Icon(empty ? Icons.bolt : Icons.play_arrow, size: 18),
+                    label: Text(
+                      empty ? (moreCount > 0 ? '全部加入' : '再练一组') : '开始',
+                    ),
                     style: FilledButton.styleFrom(
-                      backgroundColor: p.word,
+                      // 主操作压成深色，页面里不再有大块高饱和色
+                      backgroundColor: p.ink,
+                      foregroundColor: p.canvas,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -379,7 +393,7 @@ class TodayTaskCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (!done) ...<Widget>[
+              if (!empty) ...<Widget>[
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: onQuiz,
@@ -388,6 +402,28 @@ class TodayTaskCard extends StatelessWidget {
               ],
             ],
           ),
+          if (!empty && moreCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      '另有 $moreCount 个没排入（受每日上限限制）',
+                      style: TextStyle(fontSize: 11, color: p.muted),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onAll,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    child: const Text('全部加入', style: TextStyle(fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

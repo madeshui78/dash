@@ -168,6 +168,8 @@ class _WordListPageState extends State<WordListPage> {
       track: track,
     );
     final int dailyCount = await StudySettings.dailyCount();
+    final int reviewCap = await StudySettings.reviewCap();
+    final int catchUpCap = await StudySettings.catchUpCap();
 
     // 到期的旧词数。以前这个数只在复习页和统计页里出现，首页从来不告诉你
     // 今天有多少词该复习——于是你只看见"今天抽的新词"，手一滑就抽多了。
@@ -198,6 +200,8 @@ class _WordListPageState extends State<WordListPage> {
       dailyCount: dailyCount,
       dueWords: due,
       unfinished: unfinished,
+      reviewCap: reviewCap,
+      catchUpCap: catchUpCap,
     );
   }
 
@@ -292,16 +296,33 @@ class _WordListPageState extends State<WordListPage> {
     AppToast.show(context, '已清空今天这批');
   }
 
-  /// 今日队列：补学 → 新词 → 到期，按 id 去重
-  List<Word> _todayQueue(_ViewData d) {
+  /// 今日队列：补学 → 新词 → 到期，按 id 去重。
+  /// 补学和复习受设置里的上限约束；all=true 时忽略上限（「全部加入」）。
+  List<Word> _todayQueue(_ViewData d, {bool all = false}) {
+    final List<Word> catchUp = all
+        ? d.unfinished
+        : d.unfinished.take(d.catchUpCap).toList();
+    final List<Word> review = all
+        ? d.dueWords
+        : d.dueWords.take(d.reviewCap).toList();
+
     final Set<int> seen = <int>{};
     final List<Word> out = <Word>[];
-    for (final Word w in <Word>[...d.unfinished, ...d.today, ...d.dueWords]) {
+    for (final Word w in <Word>[...catchUp, ...d.today, ...review]) {
       final int? id = w.id;
       if (id == null || !seen.add(id)) continue;
       out.add(w);
     }
     return out;
+  }
+
+  int _queueMore(_ViewData d) {
+    final Set<int> all = <int>{};
+    for (final Word w in <Word>[...d.unfinished, ...d.today, ...d.dueWords]) {
+      final int? id = w.id;
+      if (id != null) all.add(id);
+    }
+    return all.length - _todayQueue(d).length;
   }
 
   /// 不常用、或带破坏性的动作收到这里
@@ -356,7 +377,8 @@ class _WordListPageState extends State<WordListPage> {
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              '其中 ${data.unfinished.length} 个是之前抽到没学完的，已排在最前面',
+              '之前有 ${data.unfinished.length} 个没学完，今天先排 '
+              '${data.unfinished.length < data.catchUpCap ? data.unfinished.length : data.catchUpCap} 个',
               style: TextStyle(fontSize: 11, color: p.muted),
             ),
           ),
@@ -603,8 +625,18 @@ class _WordListPageState extends State<WordListPage> {
                         children: <Widget>[
                           TodayTaskCard(
                             newCount: data.today.length,
-                            dueCount: data.dueWords.length,
-                            catchUpCount: data.unfinished.length,
+                            dueCount: data.dueWords.length < data.reviewCap
+                                ? data.dueWords.length
+                                : data.reviewCap,
+                            catchUpCount:
+                                data.unfinished.length < data.catchUpCap
+                                ? data.unfinished.length
+                                : data.catchUpCap,
+                            moreCount: _queueMore(data),
+                            onAll: () {
+                              final List<Word> q = _todayQueue(data, all: true);
+                              if (q.isNotEmpty) _openSession(q);
+                            },
                             onStart: () {
                               final List<Word> q = _todayQueue(data);
                               if (q.isEmpty) {
@@ -1037,6 +1069,10 @@ class _ViewData {
   final int drawable;
   final int dailyCount;
 
+  /// 每天最多排多少复习 / 补学，用户可在设置里改
+  final int reviewCap;
+  final int catchUpCap;
+
   /// 今天到期该复习的旧词（next_review <= 现在）
   final List<Word> dueWords;
 
@@ -1049,6 +1085,8 @@ class _ViewData {
     required this.today,
     required this.drawable,
     required this.dailyCount,
+    this.reviewCap = 30,
+    this.catchUpCap = 20,
     this.dueWords = const <Word>[],
     this.unfinished = const <Word>[],
   });

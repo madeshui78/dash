@@ -25,6 +25,26 @@ class _WritingPageState extends State<WritingPage> {
   bool _busy = false;
   String? _error;
   int? _savedId;
+  WritingScale _scale = writingScaleById('cet4');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScale();
+  }
+
+  Future<void> _loadScale() async {
+    final String? id = await DatabaseHelper.instance.getSetting(
+      'writing_scale',
+    );
+    if (!mounted) return;
+    setState(() => _scale = writingScaleById(id));
+  }
+
+  Future<void> _pickScale(WritingScale s) async {
+    setState(() => _scale = s);
+    await DatabaseHelper.instance.setSetting('writing_scale', s.id);
+  }
 
   @override
   void dispose() {
@@ -55,6 +75,7 @@ class _WritingPageState extends State<WritingPage> {
       final WritingFeedback fb = await WritingService.correct(
         topic: _topic.text,
         content: text,
+        scale: _scale,
       );
       final int id = await DatabaseHelper.instance.addWriting(
         Writing(
@@ -150,6 +171,32 @@ class _WritingPageState extends State<WritingPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: <Widget>[
+          Text(
+            '评分标准',
+            style: TextStyle(fontSize: UiText.caption, color: p.muted),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: writingScales.map((WritingScale s) {
+              final bool on = s.id == _scale.id;
+              return ChoiceChip(
+                label: Text(s.label, style: const TextStyle(fontSize: 12)),
+                selected: on,
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+                selectedColor: p.essay.withValues(alpha: 0.14),
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  color: on ? p.essay : p.muted,
+                  fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                ),
+                onSelected: (_) => _pickScale(s),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _topic,
             decoration: InputDecoration(
@@ -186,7 +233,7 @@ class _WritingPageState extends State<WritingPage> {
               ),
               const Spacer(),
               Text(
-                '按 15 分制批改',
+                '按 ${_scale.maxScore.toStringAsFixed(0)} 分制批改',
                 style: TextStyle(fontSize: UiText.caption, color: p.muted),
               ),
             ],
@@ -205,7 +252,8 @@ class _WritingPageState extends State<WritingPage> {
                   : const Icon(Icons.rate_review_outlined, size: 18),
               label: Text(_busy ? '批改中…' : '提交批改'),
               style: FilledButton.styleFrom(
-                backgroundColor: p.essay,
+                backgroundColor: p.ink,
+                foregroundColor: p.canvas,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -223,6 +271,7 @@ class _WritingPageState extends State<WritingPage> {
             const SizedBox(height: 22),
             _ResultView(
               feedback: _feedback!,
+              maxScore: _scale.maxScore,
               saved: _savedId != null,
               onDelete: _savedId == null
                   ? null
@@ -242,11 +291,13 @@ class _WritingPageState extends State<WritingPage> {
 
 class _ResultView extends StatelessWidget {
   final WritingFeedback feedback;
+  final double maxScore;
   final bool saved;
   final VoidCallback? onDelete;
 
   const _ResultView({
     required this.feedback,
+    required this.maxScore,
     required this.saved,
     this.onDelete,
   });
@@ -278,7 +329,7 @@ class _ResultView extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  '/ 15',
+                  '/ ${maxScore.toStringAsFixed(0)}',
                   style: TextStyle(fontSize: 12, color: p.muted),
                 ),
               ),

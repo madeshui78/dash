@@ -49,6 +49,10 @@ class _SettingsPageState extends State<SettingsPage> {
   String _studyFlow = 'steps';
   final TextEditingController _countInput = TextEditingController();
 
+  /// 今日任务上限：复习、补学各排多少
+  int _reviewCap = 30;
+  int _catchUpCap = 20;
+
   // ---------- 发音 / 背景 ----------
   bool _ttsOn = true;
   double _speechRate = StudySettings.defaultRate;
@@ -66,6 +70,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _load() async {
     final AiConfig cfg = await AiService.loadConfig();
     final int count = await StudySettings.dailyCount();
+    final int reviewCap = await StudySettings.reviewCap();
+    final int catchUpCap = await StudySettings.catchUpCap();
     final String mode = await StudySettings.dictationMode();
     final String flow = await StudySettings.studyFlow();
     final String context = await AiService.loadUserContext();
@@ -83,6 +89,8 @@ class _SettingsPageState extends State<SettingsPage> {
       _dictationMode = mode;
       _studyFlow = flow;
       _countInput.text = '$count';
+      _reviewCap = reviewCap;
+      _catchUpCap = catchUpCap;
       _context.text = context;
       _ttsOn = tts;
       _speechRate = rate;
@@ -155,8 +163,47 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // ---------------- 提醒 ----------------
+  Widget _capRow(
+    ColorScheme cs,
+    String label,
+    int value,
+    int min,
+    int max,
+    ValueChanged<int> onChanged,
+  ) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: cs.onSurface),
+          ),
+        ),
+        IconButton(
+          tooltip: '减少',
+          visualDensity: VisualDensity.compact,
+          onPressed: value > min ? () => onChanged(value - 1) : null,
+          icon: const Icon(Icons.remove, size: 17),
+        ),
+        SizedBox(
+          width: 30,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: cs.onSurface),
+          ),
+        ),
+        IconButton(
+          tooltip: '增加',
+          visualDensity: VisualDensity.compact,
+          onPressed: value < max ? () => onChanged(value + 1) : null,
+          icon: const Icon(Icons.add, size: 17),
+        ),
+      ],
+    );
+  }
 
+  // ---------------- 提醒 ----------------
   Future<void> _toggleReminder(bool on) async {
     if (on) {
       final bool granted = await ReminderService.requestPermission();
@@ -482,6 +529,20 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                _capRow(cs, '每天最多复习', _reviewCap, 0, 200, (int v) async {
+                  setState(() => _reviewCap = v);
+                  await StudySettings.setReviewCap(v);
+                }),
+                _capRow(cs, '每天最多补学', _catchUpCap, 0, 100, (int v) async {
+                  setState(() => _catchUpCap = v);
+                  await StudySettings.setCatchUpCap(v);
+                }),
+                _hint(
+                  cs,
+                  '补学 = 之前抽到但没学完的词。设为 0 就不排，'
+                  '今天任务里只放新词。复习同理。',
                 ),
                 const SizedBox(height: 14),
                 Row(

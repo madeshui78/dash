@@ -151,7 +151,8 @@ class _WrongWordPageState extends State<WrongWordPage> {
                 : const Icon(Icons.psychology_outlined, size: 18),
             label: const Text('提交今日错词'),
             style: FilledButton.styleFrom(
-              backgroundColor: p.blue,
+              backgroundColor: p.ink,
+              foregroundColor: p.canvas,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),

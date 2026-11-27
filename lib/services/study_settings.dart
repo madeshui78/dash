@@ -73,6 +73,36 @@ class StudySettings {
     await DatabaseHelper.instance.setSetting(keyCount, '$v');
   }
 
+  /// 每天最多排多少复习词。0 表示今天不排复习。
+  static Future<int> reviewCap() async {
+    final String? v = await DatabaseHelper.instance.getSetting('review_cap');
+    final int? n = int.tryParse(v ?? '');
+    if (n == null) return 30;
+    return n.clamp(0, 300);
+  }
+
+  static Future<void> setReviewCap(int n) async {
+    await DatabaseHelper.instance.setSetting(
+      'review_cap',
+      '${n.clamp(0, 300)}',
+    );
+  }
+
+  /// 每天最多补学多少之前没学完的词。0 表示不排补学。
+  static Future<int> catchUpCap() async {
+    final String? v = await DatabaseHelper.instance.getSetting('catchup_cap');
+    final int? n = int.tryParse(v ?? '');
+    if (n == null) return 20;
+    return n.clamp(0, 200);
+  }
+
+  static Future<void> setCatchUpCap(int n) async {
+    await DatabaseHelper.instance.setSetting(
+      'catchup_cap',
+      '${n.clamp(0, 200)}',
+    );
+  }
+
   /// 朗读语速。每个人耳朵不一样，这个必须能自己调。
   static Future<double> speechRate() async {
     final String? v = await DatabaseHelper.instance.getSetting(keyRate);
