@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 // 单词页顶部的三张卡：今天这批、没学完的、到期复习的。
 //
 // 三张卡同一个底色，只靠左侧功能色和内容区分——之前一张灰一张粉、
@@ -351,139 +353,254 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
     final int total = newCount + dueCount + catchUpCount;
     final bool empty = total == 0;
 
-    final List<String> parts = <String>[
-      if (newCount > 0) '$newCount 新词',
-      if (dueCount > 0) '$dueCount 复习',
-      if (catchUpCount > 0) '$catchUpCount 补学',
-    ];
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[p.surface, p.surfaceAlt],
+        ),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: p.line),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: p.ink.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: p.ink.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
+      child: Stack(
+        children: <Widget>[
+          // 装饰：同心圆弧 + 虚线圈，只做背景，不承载信息
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _TaskArtPainter(p.word)),
+            ),
+          ),
+          SizedBox(
+            // 收起时是接近方形的大卡，展开后按内容长
+            height: _open ? null : 300,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _open = !_open),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              empty
+                                  ? Icons.check_circle_outline
+                                  : Icons.today_outlined,
+                              size: 20,
+                              color: empty ? p.muted : p.word,
+                            ),
+                            const SizedBox(width: 7),
+                            Text(
+                              empty
+                                  ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了')
+                                  : '今日任务',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: p.ink,
+                              ),
+                            ),
+                            Icon(
+                              _open ? Icons.expand_less : Icons.expand_more,
+                              size: 18,
+                              color: p.muted,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        empty ? '0' : '$total',
+                        style: TextStyle(
+                          fontSize: 54,
+                          height: 0.95,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -1.5,
+                          color: p.ink,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6, bottom: 7),
+                        child: Text(
+                          '个词',
+                          style: TextStyle(fontSize: 13, color: p.muted),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (catchUpCount > 0 && !empty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: p.word.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '含 $catchUpCount 个补学',
+                            style: TextStyle(fontSize: 11, color: p.word),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  if (empty)
+                    Text(
+                      moreCount > 0
+                          ? '还有 $moreCount 个在等着，可以全部加入'
+                          : '想多背就再抽一组，别硬撑',
+                      style: TextStyle(fontSize: 13, color: p.muted),
+                    )
+                  else
+                    Row(
+                      children: <Widget>[
+                        _stat(p, '新词', newCount),
+                        _stat(p, '复习', dueCount),
+                        _stat(p, '补学', catchUpCount),
+                      ],
+                    ),
+                  if (_open) ...<Widget>[
+                    const SizedBox(height: 8),
+                    _stepRow(
+                      p,
+                      '新词',
+                      widget.dailyCount,
+                      1,
+                      100,
+                      widget.onDaily,
+                    ),
+                    _stepRow(
+                      p,
+                      '复习',
+                      widget.reviewCap,
+                      0,
+                      200,
+                      widget.onReview,
+                    ),
+                    _stepRow(
+                      p,
+                      '补学',
+                      widget.catchUpCap,
+                      0,
+                      100,
+                      widget.onCatch,
+                    ),
+                    Text(
+                      '补学 = 之前抽到没学完的词；设为 0 就当天不排',
+                      style: TextStyle(fontSize: 11, color: p.muted),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      children: <Widget>[
+                        if (widget.onGiveUp != null && catchUpCount > 0)
+                          TextButton(
+                            onPressed: widget.onGiveUp,
+                            child: const Text(
+                              '放弃补学',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        if (moreCount > 0)
+                          TextButton(
+                            onPressed: widget.onAll,
+                            child: Text(
+                              '全部加入（$moreCount）',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        TextButton(
+                          onPressed: widget.onQuiz,
+                          child: const Text(
+                            '快刷这一批',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: widget.onMore,
+                          child: const Text(
+                            '更多',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (!_open) const Spacer() else const SizedBox(height: 14),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: FilledButton.icon(
+                            onPressed: empty
+                                ? (moreCount > 0 ? widget.onAll : widget.onQuiz)
+                                : widget.onStart,
+                            icon: Icon(
+                              empty ? Icons.bolt : Icons.play_arrow,
+                              size: 19,
+                            ),
+                            label: Text(
+                              empty ? (moreCount > 0 ? '全部加入' : '再练一组') : '开始',
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                            style: FilledButton.styleFrom(
+                              // 主操作压成深色，页面里不再有大块高饱和色
+                              backgroundColor: p.ink,
+                              foregroundColor: p.canvas,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(ModulePalette p, String label, int value) {
+    return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _open = !_open),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      empty ? Icons.check_circle_outline : Icons.today_outlined,
-                      size: 20,
-                      color: empty ? p.muted : p.word,
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      empty ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了') : '今日任务',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: p.ink,
-                      ),
-                    ),
-                    Icon(
-                      _open ? Icons.expand_less : Icons.expand_more,
-                      size: 18,
-                      color: p.muted,
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Text(
-                empty ? '' : '$total 个',
-                style: TextStyle(fontSize: 11, color: p.muted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
           Text(
-            empty
-                ? (moreCount > 0 ? '还有 $moreCount 个在等着，可以全部加入' : '想多背就再抽一组，别硬撑')
-                : parts.join(' · '),
-            style: TextStyle(fontSize: 13, color: p.muted),
-          ),
-          if (_open) ...<Widget>[
-            const SizedBox(height: 8),
-            _stepRow(p, '新词', widget.dailyCount, 1, 100, widget.onDaily),
-            _stepRow(p, '复习', widget.reviewCap, 0, 200, widget.onReview),
-            _stepRow(p, '补学', widget.catchUpCap, 0, 100, widget.onCatch),
-            Text(
-              '补学 = 之前抽到没学完的词；设为 0 就当天不排',
-              style: TextStyle(fontSize: 11, color: p.muted),
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: p.ink,
             ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              children: <Widget>[
-                if (widget.onGiveUp != null && catchUpCount > 0)
-                  TextButton(
-                    onPressed: widget.onGiveUp,
-                    child: const Text('放弃补学', style: TextStyle(fontSize: 12)),
-                  ),
-                if (moreCount > 0)
-                  TextButton(
-                    onPressed: widget.onAll,
-                    child: Text(
-                      '全部加入（$moreCount）',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                TextButton(
-                  onPressed: widget.onQuiz,
-                  child: const Text('快刷这一批', style: TextStyle(fontSize: 12)),
-                ),
-                TextButton(
-                  onPressed: widget.onMore,
-                  child: const Text('更多', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 14),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton.icon(
-                    onPressed: empty
-                        ? (moreCount > 0 ? widget.onAll : widget.onQuiz)
-                        : widget.onStart,
-                    icon: Icon(empty ? Icons.bolt : Icons.play_arrow, size: 19),
-                    label: Text(
-                      empty ? (moreCount > 0 ? '全部加入' : '再练一组') : '开始',
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                    style: FilledButton.styleFrom(
-                      // 主操作压成深色，页面里不再有大块高饱和色
-                      backgroundColor: p.ink,
-                      foregroundColor: p.canvas,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
+          Text(label, style: TextStyle(fontSize: 11, color: p.muted)),
         ],
       ),
     );
@@ -687,4 +804,66 @@ class _ModuleCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 今日任务卡的背景：同心圆弧 + 一圈离散点，纯装饰
+class _TaskArtPainter extends CustomPainter {
+  final Color color;
+
+  const _TaskArtPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset c = Offset(size.width - 26, 40);
+
+    final Paint ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color.withValues(alpha: 0.10);
+    canvas.drawCircle(c, 88, ring);
+
+    final Paint arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..color = color.withValues(alpha: 0.18);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: 62),
+      -1.9,
+      1.5,
+      false,
+      arc,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: 62),
+      0.4,
+      0.9,
+      false,
+      arc,
+    );
+
+    final Paint dot = Paint()..color = color.withValues(alpha: 0.18);
+    for (int i = 0; i < 14; i++) {
+      final double a = i * 0.42;
+      canvas.drawCircle(
+        c + Offset(math.cos(a) * 108, math.sin(a) * 108),
+        1.5,
+        dot,
+      );
+    }
+
+    // 左下再压一个淡圆和短弧，避免整张卡只剩右上角有东西
+    final Offset c2 = Offset(-6, size.height + 6);
+    canvas.drawCircle(c2, 86, ring);
+    canvas.drawArc(
+      Rect.fromCircle(center: c2, radius: 60),
+      -0.6,
+      1.5,
+      false,
+      arc,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TaskArtPainter oldDelegate) => oldDelegate.color != color;
 }

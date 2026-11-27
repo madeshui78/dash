@@ -23,6 +23,7 @@ class WritingPage extends StatefulWidget {
 class _WritingPageState extends State<WritingPage> {
   final TextEditingController _topic = TextEditingController();
   final TextEditingController _body = TextEditingController();
+  final ScrollController _bodyScroll = ScrollController();
 
   WritingFeedback? _feedback;
   bool _busy = false;
@@ -53,6 +54,7 @@ class _WritingPageState extends State<WritingPage> {
   void dispose() {
     _topic.dispose();
     _body.dispose();
+    _bodyScroll.dispose();
     super.dispose();
   }
 
@@ -321,39 +323,55 @@ class _WritingPageState extends State<WritingPage> {
                 Divider(height: 16, color: p.line),
                 SizedBox(
                   height: 330,
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(
-                        child: CustomPaint(painter: _RuledPainter(p.line)),
-                      ),
-                      TextField(
-                        controller: _body,
-                        maxLines: null,
-                        expands: true,
-                        textAlignVertical: TextAlignVertical.top,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: '在这里写作文，至少 30 个词',
-                          hintStyle: TextStyle(fontSize: 13, color: p.muted),
-                          isCollapsed: true,
-                          filled: false,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                        ),
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 30 / 16,
-                          fontFamily: 'serif',
-                          color: p.ink,
-                        ),
-                        strutStyle: const StrutStyle(
-                          fontSize: 16,
-                          height: 30 / 16,
-                          forceStrutHeight: true,
-                        ),
-                      ),
-                    ],
+                  child: ListenableBuilder(
+                    listenable: _bodyScroll,
+                    builder: (BuildContext ctx, Widget? child) {
+                      // 文本框自己滚动时，把横线按滚动距离一起平移，
+                      // 否则字往上走了，线还钉在原处。
+                      final double off = _bodyScroll.hasClients
+                          ? _bodyScroll.offset
+                          : 0;
+                      return Stack(
+                        children: <Widget>[
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _RuledPainter(p.line, off),
+                            ),
+                          ),
+                          TextField(
+                            controller: _body,
+                            scrollController: _bodyScroll,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: '在这里写作文，至少 30 个词',
+                              hintStyle: TextStyle(
+                                fontSize: 13,
+                                color: p.muted,
+                              ),
+                              isCollapsed: true,
+                              filled: false,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                            ),
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 30 / 16,
+                              fontFamily: 'serif',
+                              color: p.ink,
+                            ),
+                            strutStyle: const StrutStyle(
+                              fontSize: 16,
+                              height: 30 / 16,
+                              forceStrutHeight: true,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -597,19 +615,23 @@ class _ResultView extends StatelessWidget {
 /// 答题纸的横线：每隔 30px 一条，和正文的行高对齐
 class _RuledPainter extends CustomPainter {
   final Color color;
+  final double offset;
 
-  const _RuledPainter(this.color);
+  const _RuledPainter(this.color, this.offset);
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
       ..color = color.withValues(alpha: 0.55)
       ..strokeWidth = 0.8;
-    for (double y = 38; y < size.height; y += 30) {
+    // 随正文滚动平移；按 30 取模，避免长文时偏移累积成小数
+    double y = 38 - (offset % 30);
+    for (; y < size.height; y += 30) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(_RuledPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(_RuledPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.offset != offset;
 }
