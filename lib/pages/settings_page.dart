@@ -200,6 +200,37 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       final String content = await File(path).readAsString();
 
+      final bool full = BackupService.isFullBackup(content);
+      if (full) {
+        if (!mounted) return;
+        final bool? ok = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => AlertDialog(
+            title: const Text('恢复整包备份？'),
+            content: const Text(
+              '会用备份里的内容覆盖当前所有数据：\n'
+              '单词与学习进度、作文、批注、错词记录、对话和设置。\n\n'
+              '当前数据不会自动留存，建议先导出一份。',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('覆盖恢复'),
+              ),
+            ],
+          ),
+        );
+        if (ok != true) return;
+        final int n = await BackupService.restoreAll(content);
+        if (!mounted) return;
+        AppToast.show(context, '已恢复整包备份（$n 条记录）');
+        return;
+      }
+
       final int count = await BackupService.importJson(content);
       if (!mounted) return;
       AppToast.show(context, '已导入 $count 个单词');
@@ -514,7 +545,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 _sectionTitle(cs, '数据备份'),
                 const SizedBox(height: 12),
-                _hint(cs, '卸载 App 会丢数据。导出后把文件存到网盘或发给自己，换手机/误删时导回来就行。'),
+                _hint(
+                  cs,
+                  '导出的是整包：单词与进度、作文、批注、错词记录、对话和设置。'
+                  'API Key 不会写进备份，换手机后需要重新填。',
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[

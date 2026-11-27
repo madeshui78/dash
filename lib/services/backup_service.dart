@@ -4,6 +4,8 @@
 
 import 'dart:convert';
 
+import 'package:sqflite/sqflite.dart';
+
 import '../db/database_helper.dart';
 import '../models/word.dart';
 import 'export_format.dart' show ExportFormat, ExportFormatter;
@@ -13,7 +15,46 @@ class BackupService {
 
   /// 备份文件的格式版本号。以后字段变了，用它判断怎么兼容老文件。
   /// v2：单词带 track（四级/六级/专升本/考研），判重改成「赛道 + 英文」。
-  static const int formatVersion = 2;
+  /// v3：整包备份，除单词外还带作文、批注、错词记录、对话、设置。
+  static const int formatVersion = 3;
+
+  /// 整包包含的表。顺序不重要，但都必须是用户数据，不能放 sqlite 内部表。
+  static const List<String> _tables = <String>[
+    'words',
+    'reviews',
+    'draw_pool',
+    'tombstones',
+    'essays',
+    'essay_marks',
+    'essay_translations',
+    'word_cards',
+    'sections',
+    'word_glosses',
+    'word_notes',
+    'chat_sessions',
+    'chat_messages',
+    'chat_graphs',
+    'digest_records',
+    'digest_qa',
+    'settings',
+  ];
+
+  /// 这些设置里含密钥，不进备份文件，免得备份流出去把 Key 也带出去
+  static const List<String> _secretKeys = <String>[
+    'deepseek_key',
+    'deepseek_model',
+  ];
+
+  /// 判断备份文件是整包还是老版本（只有单词）
+  static bool isFullBackup(String jsonText) {
+    try {
+      final dynamic d = jsonDecode(jsonText);
+      if (d is! Map<String, dynamic>) return false;
+      return d['tables'] is Map;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// 导出：把所有赛道的单词打包成一段带缩进的 JSON 文本。
   /// 备份是跨赛道的整体备份——换手机时四条赛道一起回来。
@@ -23,15 +64,81 @@ class BackupService {
     for (final Word w in words) {
       perTrack[w.track] = (perTrack[w.track] ?? 0) + 1;
     }
+
+    // 整包：把用户数据表整张带走，恢复时按原 id 放回去，关联不会断
+    final Database db = await DatabaseHelper.instance.database;
+    final Map<String, dynamic> tables = <String, dynamic>{};
+    for (final String t in _tables) {
+      List<Map<String, Object?>> rows = await db.query(t);
+      if (t == 'settings') {
+        rows = rows
+            .where((Map<String, Object?> r) => !_secretKeys.contains(r['key']))
+            .toList();
+      }
+      tables[t] = rows;
+    }
+
     final Map<String, dynamic> data = <String, dynamic>{
       'format': formatVersion,
       'app': 'english_agent',
       'exportedAt': DateTime.now().toIso8601String(),
       'count': words.length,
       'byTrack': perTrack,
+      'tables': tables,
       'words': words.map((Word w) => w.toMap()).toList(),
     };
     return const JsonEncoder.withIndent('  ').convert(data);
+  }
+
+  /// 整包恢复：会清空当前用户数据再写回，调用前必须让用户确认。
+  /// 设置表不清空，只覆盖备份里有的键，避免把本机 Key 一起抹掉。
+  static Future<int> restoreAll(String jsonText) async {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(jsonText);
+    } catch (_) {
+      throw Exception('这不是一个合法的 JSON 文件');
+    }
+    if (decoded is! Map<String, dynamic> || decoded['app'] != 'english_agent') {
+      throw Exception('这不是本 App 导出的备份文件');
+    }
+    final dynamic rawTables = decoded['tables'];
+    if (rawTables is! Map) {
+      throw Exception('这不是整包备份，只能用「导入单词」的方式合并');
+    }
+
+    final Database db = await DatabaseHelper.instance.database;
+    int restored = 0;
+
+    await db.transaction((Transaction txn) async {
+      for (final String t in _tables) {
+        if (!rawTables.containsKey(t)) continue;
+        final dynamic rows = rawTables[t];
+        if (rows is! List) continue;
+
+        if (t != 'settings') {
+          await txn.delete(t);
+        }
+        for (final dynamic r in rows) {
+          if (r is! Map) continue;
+          final Map<String, Object?> row = r.map(
+            (dynamic k, dynamic v) => MapEntry<String, Object?>('$k', v),
+          );
+          if (t == 'settings' && _secretKeys.contains(row['key'])) continue;
+          try {
+            await txn.insert(
+              t,
+              row,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+            restored++;
+          } catch (_) {
+            // 老版本缺列之类的情况跳过这一行，别让整包恢复失败
+          }
+        }
+      }
+    });
+    return restored;
   }
 
   /// 导入：解析 JSON 文本并写回数据库。
