@@ -87,37 +87,91 @@ class WritingScale {
   final double maxScore;
   final String standard;
 
+  /// 分数依据，写在选择面板里，不让人以为分数是随手编的
+  final String note;
+
   const WritingScale({
     required this.id,
     required this.label,
     required this.maxScore,
     required this.standard,
+    this.note = '',
   });
 }
 
-/// 评分标准由用户选，不写死四六级
+/// 只放有公开依据的评分标准；各省自命题的差异写在 note 里
 const List<WritingScale> writingScales = <WritingScale>[
-  WritingScale(id: 'primary', label: '小学', maxScore: 10, standard: '小学英语作文'),
-  WritingScale(id: 'junior', label: '初中', maxScore: 15, standard: '中考英语作文'),
-  WritingScale(id: 'senior', label: '高中', maxScore: 25, standard: '高考英语作文'),
-  WritingScale(id: 'cet4', label: '四级', maxScore: 15, standard: '大学英语四级写作'),
-  WritingScale(id: 'cet6', label: '六级', maxScore: 15, standard: '大学英语六级写作'),
-  WritingScale(id: 'upgrade', label: '专升本', maxScore: 15, standard: '专升本英语写作'),
-  WritingScale(id: 'postgrad', label: '考研', maxScore: 20, standard: '考研英语写作'),
+  WritingScale(
+    id: 'zhongkao',
+    label: '中考',
+    maxScore: 15,
+    standard: '中考英语作文',
+    note: '多数地区满分 15；部分省市 20 或 25，以本地卷面为准',
+  ),
+  WritingScale(
+    id: 'gaokao',
+    label: '高考',
+    maxScore: 25,
+    standard: '高考英语作文（全国卷）',
+    note: '全国卷写作 25 分；新高考为应用文 15 + 读后续写 25',
+  ),
+  WritingScale(
+    id: 'cet4',
+    label: '四级',
+    maxScore: 15,
+    standard: '大学英语四级写作',
+    note: '卷面 15 分，占 15%，折合总分 106.5',
+  ),
+  WritingScale(
+    id: 'cet6',
+    label: '六级',
+    maxScore: 15,
+    standard: '大学英语六级写作',
+    note: '卷面 15 分，占 15%，折合总分 106.5',
+  ),
+  WritingScale(
+    id: 'kaoyan1',
+    label: '考研一',
+    maxScore: 20,
+    standard: '考研英语（一）大作文',
+    note: '英语一写作共 30：小作文 10 + 大作文 20',
+  ),
+  WritingScale(
+    id: 'kaoyan2',
+    label: '考研二',
+    maxScore: 15,
+    standard: '考研英语（二）大作文',
+    note: '英语二写作共 25：小作文 10 + 大作文 15',
+  ),
+  WritingScale(
+    id: 'upgrade',
+    label: '专升本',
+    maxScore: 15,
+    standard: '专升本英语写作',
+    note: '各省不同（15 / 20 / 25），这里按 15 算，以本省考纲为准',
+  ),
 ];
 
 WritingScale writingScaleById(String? id) {
+  // 兼容旧版本存下的 id
+  const Map<String, String> legacy = <String, String>{
+    'primary': 'zhongkao',
+    'junior': 'zhongkao',
+    'senior': 'gaokao',
+    'postgrad': 'kaoyan1',
+  };
+  final String key = legacy[id] ?? id ?? '';
   for (final WritingScale s in writingScales) {
-    if (s.id == id) return s;
+    if (s.id == key) return s;
   }
-  return writingScales[3];
+  return writingScales[2]; // 默认四级
 }
 
 class WritingService {
   WritingService._();
 
   static const String _system =
-      '你是英语写作阅卷老师，熟悉四六级和专升本评分标准。'
+      '你是英语写作阅卷老师，熟悉中考、高考、四六级、考研和专升本的评分标准。'
       '只输出一个合法的 JSON 对象，不要输出解释、Markdown 或代码块。'
       'JSON 结构：'
       '{"score": 按题目给定满分的数字, "level": "档次说明", '
@@ -137,6 +191,7 @@ class WritingService {
 
     final String ask =
         '评分标准：${scale.standard}，满分 ${scale.maxScore.toStringAsFixed(0)} 分。\n'
+        '${scale.note.isEmpty ? '' : '评分依据：${scale.note}\n'}'
         '题目/要求：${topic.trim().isEmpty ? '未提供，按通用议论文评分' : topic.trim()}\n'
         '作文正文：\n$content\n\n'
         '请严格按该标准的满分打分，指出 3-6 处具体问题（引用原文片段），'

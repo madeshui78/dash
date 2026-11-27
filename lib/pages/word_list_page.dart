@@ -653,6 +653,60 @@ class _WordListPageState extends State<WordListPage> {
                                 : () => _giveUpUnfinished(data),
                             onMore: () => _openMore(data),
                           ),
+                          const SizedBox(height: 2),
+                          // 学习和自测的入口独立成一行，位置固定，不藏在卡片里
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: SizedBox(
+                                  height: 40,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _toggleFlow,
+                                    icon: Icon(
+                                      _loop ? Icons.call_split : Icons.repeat,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      _loop ? '换成四步' : '换成小循环',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: p.ink,
+                                      side: BorderSide(color: p.line),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 40,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      final List<Word> q = _todayQueue(data);
+                                      if (q.isEmpty) return;
+                                      _openQuiz(q, '今日任务');
+                                    },
+                                    icon: const Icon(Icons.bolt, size: 16),
+                                    label: const Text(
+                                      '快刷',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: p.ink,
+                                      side: BorderSide(color: p.line),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       );
                     }

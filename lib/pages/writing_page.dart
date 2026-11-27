@@ -130,8 +130,9 @@ class _WritingPageState extends State<WritingPage> {
               ListTile(
                 title: Text('${s.label}写作'),
                 subtitle: Text(
-                  '满分 ${s.maxScore.toStringAsFixed(0)} 分',
-                  style: TextStyle(fontSize: 11, color: p.muted),
+                  '满分 ${s.maxScore.toStringAsFixed(0)} 分'
+                  '${s.note.isEmpty ? '' : ' · ${s.note}'}',
+                  style: TextStyle(fontSize: 11, height: 1.5, color: p.muted),
                 ),
                 trailing: s.id == _scale.id
                     ? Icon(Icons.check, size: 18, color: p.essay)
@@ -345,6 +346,11 @@ class _WritingPageState extends State<WritingPage> {
                           height: 30 / 16,
                           fontFamily: 'serif',
                           color: p.ink,
+                        ),
+                        strutStyle: const StrutStyle(
+                          fontSize: 16,
+                          height: 30 / 16,
+                          forceStrutHeight: true,
                         ),
                       ),
                     ],
@@ -599,7 +605,7 @@ class _RuledPainter extends CustomPainter {
     final Paint paint = Paint()
       ..color = color.withValues(alpha: 0.55)
       ..strokeWidth = 0.8;
-    for (double y = 30; y < size.height; y += 30) {
+    for (double y = 38; y < size.height; y += 30) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }

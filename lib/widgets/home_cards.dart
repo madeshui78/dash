@@ -358,12 +358,19 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
     ];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: p.line),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: p.ink.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,21 +385,21 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
                   children: <Widget>[
                     Icon(
                       empty ? Icons.check_circle_outline : Icons.today_outlined,
-                      size: 18,
+                      size: 20,
                       color: empty ? p.muted : p.word,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 7),
                     Text(
                       empty ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了') : '今日任务',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: p.ink,
                       ),
                     ),
                     Icon(
                       _open ? Icons.expand_less : Icons.expand_more,
-                      size: 16,
+                      size: 18,
                       color: p.muted,
                     ),
                   ],
@@ -410,7 +417,7 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
             empty
                 ? (moreCount > 0 ? '还有 $moreCount 个在等着，可以全部加入' : '想多背就再抽一组，别硬撑')
                 : parts.join(' · '),
-            style: TextStyle(fontSize: 12, color: p.muted),
+            style: TextStyle(fontSize: 13, color: p.muted),
           ),
           if (_open) ...<Widget>[
             const SizedBox(height: 8),
@@ -449,19 +456,20 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
               ],
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: <Widget>[
               Expanded(
                 child: SizedBox(
-                  height: 42,
+                  height: 48,
                   child: FilledButton.icon(
                     onPressed: empty
                         ? (moreCount > 0 ? widget.onAll : widget.onQuiz)
                         : widget.onStart,
-                    icon: Icon(empty ? Icons.bolt : Icons.play_arrow, size: 18),
+                    icon: Icon(empty ? Icons.bolt : Icons.play_arrow, size: 19),
                     label: Text(
                       empty ? (moreCount > 0 ? '全部加入' : '再练一组') : '开始',
+                      style: const TextStyle(fontSize: 15),
                     ),
                     style: FilledButton.styleFrom(
                       // 主操作压成深色，页面里不再有大块高饱和色
@@ -474,7 +482,6 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
                   ),
                 ),
               ),
-              if (!empty) ...<Widget>[const SizedBox(width: 8)],
             ],
           ),
         ],
