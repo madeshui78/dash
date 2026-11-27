@@ -292,6 +292,18 @@ class _WordListPageState extends State<WordListPage> {
     AppToast.show(context, '已清空今天这批');
   }
 
+  /// 今日队列：补学 → 新词 → 到期，按 id 去重
+  List<Word> _todayQueue(_ViewData d) {
+    final Set<int> seen = <int>{};
+    final List<Word> out = <Word>[];
+    for (final Word w in <Word>[...d.unfinished, ...d.today, ...d.dueWords]) {
+      final int? id = w.id;
+      if (id == null || !seen.add(id)) continue;
+      out.add(w);
+    }
+    return out;
+  }
+
   /// 不常用、或带破坏性的动作收到这里
   void _openMore(_ViewData data) {
     final ModulePalette p = ModulePalette.of(context);
@@ -329,6 +341,34 @@ class _WordListPageState extends State<WordListPage> {
             const SizedBox(height: 6),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 补学只是今日任务的一部分，这里只留一句说明，不再重复开一张卡
+  Widget _catchUpHint(_ViewData data) {
+    final ModulePalette p = ModulePalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 6),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.history_toggle_off, size: 13, color: p.muted),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '其中 ${data.unfinished.length} 个是之前抽到没学完的，已排在最前面',
+              style: TextStyle(fontSize: 11, color: p.muted),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _giveUpUnfinished(data),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+            ),
+            child: Text('放弃这些', style: TextStyle(fontSize: 11, color: p.muted)),
+          ),
+        ],
       ),
     );
   }
@@ -561,34 +601,28 @@ class _WordListPageState extends State<WordListPage> {
                       // 这里只负责把数据和动作递过去
                       return Column(
                         children: <Widget>[
-                          StudyReviewRow(
-                            todayCount: data.today.length,
-                            drawable: data.drawable,
-                            dailyCount: data.dailyCount,
+                          TodayTaskCard(
+                            newCount: data.today.length,
                             dueCount: data.dueWords.length,
-                            loop: _loop,
-                            onStudy: () => _openSession(data.today),
-                            onDraw: () => _drawMore(data.dailyCount),
-                            onImport: () => Navigator.of(context).push(
-                              SmoothRoute<Object?>(
-                                page: ImportPage(
-                                  refreshTick: widget.refreshTick,
-                                ),
-                              ),
-                            ),
-                            onReview: () async {
-                              await Navigator.of(context).push(
-                                SmoothRoute<Object?>(
-                                  page: ReviewPage(
-                                    refreshTick: widget.refreshTick,
-                                  ),
-                                ),
-                              );
-                              if (mounted) _reload();
+                            catchUpCount: data.unfinished.length,
+                            onStart: () {
+                              final List<Word> q = _todayQueue(data);
+                              if (q.isEmpty) {
+                                _drawMore(data.dailyCount);
+                              } else {
+                                _openSession(q);
+                              }
+                            },
+                            onQuiz: () {
+                              final List<Word> q = _todayQueue(data);
+                              if (q.isEmpty) return;
+                              _openQuiz(q, '今日任务');
                             },
                           ),
                           const SizedBox(height: 10),
-                          if (data.today.isNotEmpty)
+                          if (data.today.isNotEmpty ||
+                              data.dueWords.isNotEmpty ||
+                              data.unfinished.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 2),
                               child: Row(
@@ -607,18 +641,6 @@ class _WordListPageState extends State<WordListPage> {
                                       visualDensity: VisualDensity.compact,
                                     ),
                                   ),
-                                  TextButton.icon(
-                                    onPressed: () =>
-                                        _openQuiz(data.today, '今日这批'),
-                                    icon: const Icon(Icons.bolt, size: 15),
-                                    label: const Text(
-                                      '快刷',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ),
                                   const Spacer(),
                                   IconButton(
                                     tooltip: '更多',
@@ -632,13 +654,7 @@ class _WordListPageState extends State<WordListPage> {
                                 ],
                               ),
                             ),
-                          if (data.unfinished.isNotEmpty)
-                            UnfinishedCard(
-                              words: data.unfinished,
-                              onContinue: () => _openSession(data.unfinished),
-                              onQuiz: () => _openQuiz(data.unfinished, '没学完这批'),
-                              onGiveUp: () => _giveUpUnfinished(data),
-                            ),
+                          if (data.unfinished.isNotEmpty) _catchUpHint(data),
                         ],
                       );
                     }

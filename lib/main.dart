@@ -17,7 +17,6 @@ import 'pages/essay_notes_page.dart';
 import 'pages/essay_page.dart';
 import 'pages/import_page.dart';
 import 'pages/key_gate.dart';
-import 'pages/review_page.dart';
 import 'pages/sections_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/stats_page.dart';
@@ -184,8 +183,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onTap(int i) {
+    // 已经在作文页时再点一次「作文」：进入写作练习
+    if (i == 0 && _index == 0) {
+      _openWriting();
+      return;
+    }
     setState(() => _index = i);
     if (i == 1 || i == 2) _refreshTick.value++;
+  }
+
+  bool _writingPulse = false;
+
+  Future<void> _openWriting() async {
+    if (_writingPulse) return;
+    HapticFeedback.mediumImpact();
+    setState(() => _writingPulse = true);
+    // 让图标先翻成笔，再打开页面
+    await Future<void>.delayed(const Duration(milliseconds: 240));
+    if (!mounted) return;
+    await Navigator.of(context)
+        .push<Object?>(SmoothRoute<Object?>(page: const WritingPage()));
+    if (mounted) setState(() => _writingPulse = false);
   }
 
   Future<void> _openPage(Widget page, String title) async {
@@ -249,7 +267,11 @@ class _HomePageState extends State<HomePage> {
           onPush: _push,
         ),
         body: _AnimatedBody(index: _index, pages: _pages),
-        bottomNavigationBar: _ArcNavBar(index: _index, onTap: _onTap),
+        bottomNavigationBar: _ArcNavBar(
+          index: _index,
+          writingPulse: _writingPulse,
+          onTap: _onTap,
+        ),
         backgroundColor: p.canvas,
       ),
     );
@@ -315,9 +337,14 @@ class _AnimatedBodyState extends State<_AnimatedBody>
 /// 底部导航：浮着的圆角条，每个页签有自己的功能色和点击动效。
 class _ArcNavBar extends StatelessWidget {
   final int index;
+  final bool writingPulse;
   final ValueChanged<int> onTap;
 
-  const _ArcNavBar({required this.index, required this.onTap});
+  const _ArcNavBar({
+    required this.index,
+    required this.onTap,
+    this.writingPulse = false,
+  });
 
   static const double _radius = 24;
 
@@ -364,10 +391,13 @@ class _ArcNavBar extends StatelessWidget {
             child: Row(
               children: List<Widget>.generate(4, (int i) {
                 final bool on = i == index;
+                final bool writing = i == 0 && writingPulse;
                 return Expanded(
                   child: _NavItem(
-                    icon: on ? _iconsOn[i] : _icons[i],
-                    label: _labels[i],
+                    icon: writing
+                        ? Icons.edit_note
+                        : (on ? _iconsOn[i] : _icons[i]),
+                    label: writing ? '写作' : _labels[i],
                     color: p.tab(i),
                     selected: on,
                     fx: _fx[i],
@@ -420,7 +450,27 @@ class _NavItem extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 21, color: selected ? color : p.muted),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutBack,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (Widget child, Animation<double> anim) {
+                final Animation<double> turn = Tween<double>(
+                  begin: 0.55,
+                  end: 1,
+                ).animate(anim);
+                return RotationTransition(
+                  turns: turn,
+                  child: ScaleTransition(scale: anim, child: child),
+                );
+              },
+              child: Icon(
+                icon,
+                key: ValueKey<IconData>(icon),
+                size: 21,
+                color: selected ? color : p.muted,
+              ),
+            ),
           ),
           const SizedBox(height: 2),
           Text(

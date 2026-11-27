@@ -292,6 +292,108 @@ class DueCard extends StatelessWidget {
   }
 }
 
+/// 今日任务：把「补学 + 新词 + 到期」合成一个入口，减少自己拼数字。
+class TodayTaskCard extends StatelessWidget {
+  final int newCount;
+  final int dueCount;
+  final int catchUpCount;
+  final VoidCallback onStart;
+  final VoidCallback onQuiz;
+
+  const TodayTaskCard({
+    super.key,
+    required this.newCount,
+    required this.dueCount,
+    required this.catchUpCount,
+    required this.onStart,
+    required this.onQuiz,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ModulePalette p = ModulePalette.of(context);
+    final int total = newCount + dueCount + catchUpCount;
+    final bool done = total == 0;
+
+    final List<String> parts = <String>[
+      if (newCount > 0) '$newCount 新词',
+      if (dueCount > 0) '$dueCount 复习',
+      if (catchUpCount > 0) '$catchUpCount 补学',
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                done ? Icons.check_circle_outline : Icons.today_outlined,
+                size: 18,
+                color: done ? p.green : p.word,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                done ? '今天的词清完了' : '今日任务',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: p.ink,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                done ? '' : '$total 个',
+                style: TextStyle(fontSize: 11, color: p.muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            done ? '想多背就再抽一组，别硬撑' : parts.join(' · '),
+            style: TextStyle(fontSize: 12, color: p.muted),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: FilledButton.icon(
+                    onPressed: onStart,
+                    icon: Icon(done ? Icons.bolt : Icons.play_arrow, size: 18),
+                    label: Text(done ? '再练一组' : '开始'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: p.word,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (!done) ...<Widget>[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: onQuiz,
+                  child: const Text('快刷', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 单词页最上面并排的两个模块：学习 / 复习。
 class StudyReviewRow extends StatelessWidget {
   final int todayCount;
