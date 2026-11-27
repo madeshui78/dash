@@ -13,6 +13,7 @@ import '../models/word.dart';
 import '../services/ai_service.dart';
 import '../services/essay_store.dart';
 import '../services/backup_service.dart';
+import '../services/reminder_service.dart';
 import '../services/study_settings.dart';
 import '../services/track_store.dart';
 import '../services/tts_service.dart';
@@ -37,6 +38,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ---------- 备份 ----------
   bool _busyBackup = false;
+
+  // ---------- 提醒 ----------
+  bool _reminderOn = false;
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
 
   // ---------- 学习 ----------
   int _dailyCount = StudySettings.defaultCount;
@@ -68,6 +73,8 @@ class _SettingsPageState extends State<SettingsPage> {
         await DatabaseHelper.instance.getSetting('tts_enabled') != '0';
     final double rate = await StudySettings.speechRate();
     final double essaySize = await EssayStore.fontSize();
+    final bool reminderOn = await ReminderService.isEnabled();
+    final TimeOfDay reminderTime = await ReminderService.savedTime();
     if (!mounted) return;
     setState(() {
       _deepseekKey.text = cfg.deepseekKey;
@@ -80,6 +87,8 @@ class _SettingsPageState extends State<SettingsPage> {
       _ttsOn = tts;
       _speechRate = rate;
       _essayFontSize = essaySize;
+      _reminderOn = reminderOn;
+      _reminderTime = reminderTime;
       TtsService.enabled = tts; // 进设置就把开关同步过去，不用等保存
       _loading = false;
     });
@@ -144,6 +153,37 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       if (mounted) setState(() => _testing = false);
     }
+  }
+
+  // ---------------- 提醒 ----------------
+
+  Future<void> _toggleReminder(bool on) async {
+    if (on) {
+      final bool granted = await ReminderService.requestPermission();
+      if (!granted) {
+        if (mounted) AppToast.show(context, '系统没给通知权限，去系统设置里打开');
+        return;
+      }
+      await ReminderService.enable(_reminderTime);
+      if (!mounted) return;
+      setState(() => _reminderOn = true);
+      AppToast.show(context, '已开启：每天 ${_reminderTime.format(context)}');
+    } else {
+      await ReminderService.disable();
+      if (!mounted) return;
+      setState(() => _reminderOn = false);
+      AppToast.show(context, '已关闭每日提醒');
+    }
+  }
+
+  Future<void> _pickReminderTime() async {
+    final TimeOfDay? t = await showTimePicker(
+      context: context,
+      initialTime: _reminderTime,
+    );
+    if (t == null) return;
+    setState(() => _reminderTime = t);
+    if (_reminderOn) await ReminderService.enable(t);
   }
 
   // ---------------- 备份 ----------------
@@ -538,6 +578,43 @@ class _SettingsPageState extends State<SettingsPage> {
                   '现在每天抽 $_dailyCount 个。抽词只从「没掌握、也没抽过」的词里'
                   '随机取，跨天不会重复；词抽完了会提示你再导入一批。',
                 ),
+
+                const SizedBox(height: 28),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                _sectionTitle(cs, '每日提醒'),
+                const SizedBox(height: 4),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('每天提醒背词'),
+                  subtitle: Text(
+                    '到点由手机本地发通知，不联网也能用',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  value: _reminderOn,
+                  onChanged: _toggleReminder,
+                ),
+                if (_reminderOn)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('提醒时间'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _reminderTime.format(context),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
+                    onTap: _pickReminderTime,
+                  ),
+                _hint(cs, '提醒由系统调度，可能晚几分钟；深度省电时会更久，不是闹钟。'),
 
                 const SizedBox(height: 28),
                 const Divider(),

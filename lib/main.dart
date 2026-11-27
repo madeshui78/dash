@@ -2,6 +2,7 @@
 //
 // 打开先到打卡日历，打完卡才进主界面——这是每天的起点。
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ import 'pages/word_list_page.dart';
 import 'pages/wrong_word_page.dart';
 import 'services/chat_focus.dart';
 import 'services/essay_focus.dart';
+import 'services/reminder_service.dart';
 import 'services/starter_words.dart';
 import 'services/theme_store.dart';
 import 'services/track_store.dart';
@@ -52,6 +54,10 @@ void main() async {
   await ThemeStore.load();
   // 第一次装：先给四级灌 500 个起步词，打开就有东西可背
   await StarterWords.ensureLoaded();
+
+  // 通知插件初始化放启动阶段；已经开过提醒的，顺手重排一次
+  await ReminderService.init();
+  unawaited(ReminderService.resync());
 
   runApp(const EnglishApp());
 }

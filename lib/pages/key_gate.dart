@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../db/database_helper.dart';
+import '../services/reminder_service.dart';
 import '../theme/module_palette.dart';
 import '../widgets/app_toast.dart';
 
@@ -55,10 +56,86 @@ class _KeyGateState extends State<KeyGate> {
     }
     await DatabaseHelper.instance.setSetting('deepseek_key', k);
     if (!mounted) return;
+    // Key 填好了，顺手问一句要不要每天提醒
+    await _askReminder();
+    if (!mounted) return;
     setState(() {
       _error = null;
       _hasKey = true;
     });
+  }
+
+  /// 首次进入时问一次提醒时间。用户可以拒绝，之后在设置里还能开。
+  Future<void> _askReminder() async {
+    TimeOfDay time = const TimeOfDay(hour: 20, minute: 0);
+    final bool? enable = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setD) {
+          return AlertDialog(
+            title: const Text('每天提醒背词？'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  '选一个固定时间，到点由手机本地发一条提醒。不联网也能用。',
+                  style: TextStyle(fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 14),
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: ctx,
+                        initialTime: time,
+                      );
+                      if (picked != null) setD(() => time = picked);
+                    },
+                    icon: const Icon(Icons.alarm, size: 18),
+                    label: Text('每天 ${time.format(ctx)}'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '提醒由系统调度，可能晚几分钟；深度省电时会更久，'
+                  '不会像闹钟那样严格。',
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.6,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('先不用'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('开启提醒'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (enable != true) return;
+
+    final bool granted = await ReminderService.requestPermission();
+    if (!granted) {
+      if (mounted) {
+        AppToast.show(context, '系统没给通知权限，之后可在设置里再开');
+      }
+      return;
+    }
+    await ReminderService.enable(time);
+    if (mounted) {
+      AppToast.show(context, '已开启：每天 ${time.format(context)} 提醒');
+    }
   }
 
   Future<void> _copyLink() async {
