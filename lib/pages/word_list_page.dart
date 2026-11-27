@@ -336,6 +336,18 @@ class _WordListPageState extends State<WordListPage> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
+              leading: Icon(Icons.repeat, color: p.word),
+              title: Text(_loop ? '换成四步学习' : '换成小循环'),
+              subtitle: Text(
+                _loop ? '现在是「拼词 → 回头考」的小循环' : '现在是「看 → 写」四步走',
+                style: TextStyle(fontSize: 12, color: p.muted),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _toggleFlow();
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.add_circle_outline, color: p.word),
               title: const Text('多抽几个词'),
               subtitle: Text(
@@ -362,35 +374,6 @@ class _WordListPageState extends State<WordListPage> {
             const SizedBox(height: 6),
           ],
         ),
-      ),
-    );
-  }
-
-  /// 补学只是今日任务的一部分，这里只留一句说明，不再重复开一张卡
-  Widget _catchUpHint(_ViewData data) {
-    final ModulePalette p = ModulePalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 6),
-      child: Row(
-        children: <Widget>[
-          Icon(Icons.history_toggle_off, size: 13, color: p.muted),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              '之前有 ${data.unfinished.length} 个没学完，今天先排 '
-              '${data.unfinished.length < data.catchUpCap ? data.unfinished.length : data.catchUpCap} 个',
-              style: TextStyle(fontSize: 11, color: p.muted),
-            ),
-          ),
-          TextButton(
-            onPressed: () => _giveUpUnfinished(data),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-            ),
-            child: Text('放弃这些', style: TextStyle(fontSize: 11, color: p.muted)),
-          ),
-        ],
       ),
     );
   }
@@ -665,43 +648,11 @@ class _WordListPageState extends State<WordListPage> {
                               if (q.isEmpty) return;
                               _openQuiz(q, '今日任务');
                             },
+                            onGiveUp: data.unfinished.isEmpty
+                                ? null
+                                : () => _giveUpUnfinished(data),
+                            onMore: () => _openMore(data),
                           ),
-                          const SizedBox(height: 10),
-                          if (data.today.isNotEmpty ||
-                              data.dueWords.isNotEmpty ||
-                              data.unfinished.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Row(
-                                children: <Widget>[
-                                  TextButton.icon(
-                                    onPressed: _toggleFlow,
-                                    icon: Icon(
-                                      _loop ? Icons.call_split : Icons.repeat,
-                                      size: 15,
-                                    ),
-                                    label: Text(
-                                      _loop ? '换成四步' : '换成小循环',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  IconButton(
-                                    tooltip: '更多',
-                                    onPressed: () => _openMore(data),
-                                    icon: Icon(
-                                      Icons.more_horiz,
-                                      size: 20,
-                                      color: p.muted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (data.unfinished.isNotEmpty) _catchUpHint(data),
                         ],
                       );
                     }

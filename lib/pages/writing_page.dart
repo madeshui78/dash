@@ -105,6 +105,49 @@ class _WritingPageState extends State<WritingPage> {
     }
   }
 
+  /// 评分标准收进小窗，避免一屏都是选项
+  void _openScaleSheet() {
+    final ModulePalette p = ModulePalette.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                '评分标准',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: p.ink,
+                ),
+              ),
+            ),
+            for (final WritingScale s in writingScales)
+              ListTile(
+                title: Text('${s.label}写作'),
+                subtitle: Text(
+                  '满分 ${s.maxScore.toStringAsFixed(0)} 分',
+                  style: TextStyle(fontSize: 11, color: p.muted),
+                ),
+                trailing: s.id == _scale.id
+                    ? Icon(Icons.check, size: 18, color: p.essay)
+                    : null,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickScale(s);
+                },
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _openHistory() async {
     final List<Writing> list = await DatabaseHelper.instance.getWritings(
       track: TrackStore.current.value,
@@ -198,72 +241,134 @@ class _WritingPageState extends State<WritingPage> {
                 ),
               ],
             ),
-          Text(
-            '评分标准',
-            style: TextStyle(fontSize: UiText.caption, color: p.muted),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: writingScales.map((WritingScale s) {
-              final bool on = s.id == _scale.id;
-              return ChoiceChip(
-                label: Text(s.label, style: const TextStyle(fontSize: 12)),
-                selected: on,
-                showCheckmark: false,
-                visualDensity: VisualDensity.compact,
-                selectedColor: p.essay.withValues(alpha: 0.14),
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  color: on ? p.essay : p.muted,
-                  fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+          // 一张“答题纸”：白底、细边、横线，尽量接近卷面
+          Container(
+            decoration: BoxDecoration(
+              color: p.surface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: p.line),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: p.ink.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-                onSelected: (_) => _pickScale(s),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _topic,
-            decoration: InputDecoration(
-              labelText: '题目 / 要求（可留空）',
-              hintText: '例如：On the importance of reading',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              isDense: true,
+              ],
             ),
-            style: const TextStyle(fontSize: UiText.body),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _body,
-            minLines: 10,
-            maxLines: 20,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '把作文写在这里，至少 30 个词',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text(
+                      'WRITING',
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 2.4,
+                        fontWeight: FontWeight.w600,
+                        color: p.muted,
+                      ),
+                    ),
+                    const Spacer(),
+                    InkWell(
+                      onTap: _openScaleSheet,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
+                              '${_scale.label} · ${_scale.maxScore.toStringAsFixed(0)} 分',
+                              style: TextStyle(fontSize: 11, color: p.muted),
+                            ),
+                            Icon(Icons.expand_more, size: 14, color: p.muted),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Divider(height: 18, color: p.line),
+                TextField(
+                  controller: _topic,
+                  decoration: InputDecoration(
+                    hintText: '题目 / 要求（可留空）',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: p.muted,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    isCollapsed: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.4,
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.w600,
+                    color: p.ink,
+                  ),
+                ),
+                Divider(height: 16, color: p.line),
+                SizedBox(
+                  height: 330,
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned.fill(
+                        child: CustomPaint(painter: _RuledPainter(p.line)),
+                      ),
+                      TextField(
+                        controller: _body,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: '在这里写作文，至少 30 个词',
+                          hintStyle: TextStyle(fontSize: 13, color: p.muted),
+                          isCollapsed: true,
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 30 / 16,
+                          fontFamily: 'serif',
+                          color: p.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: <Widget>[
+                    Text(
+                      '$_words words',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _words >= 30 ? p.green : p.muted,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '最少 30 词',
+                      style: TextStyle(fontSize: 11, color: p.muted),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            style: const TextStyle(fontSize: UiText.body, height: 1.7),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: <Widget>[
-              Text(
-                '$_words 词',
-                style: TextStyle(fontSize: UiText.caption, color: p.muted),
-              ),
-              const Spacer(),
-              Text(
-                '按 ${_scale.maxScore.toStringAsFixed(0)} 分制批改',
-                style: TextStyle(fontSize: UiText.caption, color: p.muted),
-              ),
-            ],
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -481,4 +586,24 @@ class _ResultView extends StatelessWidget {
     t,
     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.ink),
   );
+}
+
+/// 答题纸的横线：每隔 30px 一条，和正文的行高对齐
+class _RuledPainter extends CustomPainter {
+  final Color color;
+
+  const _RuledPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color.withValues(alpha: 0.55)
+      ..strokeWidth = 0.8;
+    for (double y = 30; y < size.height; y += 30) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RuledPainter oldDelegate) => oldDelegate.color != color;
 }

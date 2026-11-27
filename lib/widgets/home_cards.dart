@@ -312,6 +312,8 @@ class TodayTaskCard extends StatefulWidget {
   final VoidCallback onStart;
   final VoidCallback onAll;
   final VoidCallback onQuiz;
+  final VoidCallback? onGiveUp;
+  final VoidCallback? onMore;
 
   const TodayTaskCard({
     super.key,
@@ -327,6 +329,8 @@ class TodayTaskCard extends StatefulWidget {
     required this.onStart,
     required this.onAll,
     required this.onQuiz,
+    this.onGiveUp,
+    this.onMore,
     this.moreCount = 0,
   });
 
@@ -414,8 +418,35 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
             _stepRow(p, '复习', widget.reviewCap, 0, 200, widget.onReview),
             _stepRow(p, '补学', widget.catchUpCap, 0, 100, widget.onCatch),
             Text(
-              '改完立刻生效；设为 0 表示今天不排这一类',
+              '补学 = 之前抽到没学完的词；设为 0 就当天不排',
               style: TextStyle(fontSize: 11, color: p.muted),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
+              children: <Widget>[
+                if (widget.onGiveUp != null && catchUpCount > 0)
+                  TextButton(
+                    onPressed: widget.onGiveUp,
+                    child: const Text('放弃补学', style: TextStyle(fontSize: 12)),
+                  ),
+                if (moreCount > 0)
+                  TextButton(
+                    onPressed: widget.onAll,
+                    child: Text(
+                      '全部加入（$moreCount）',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: widget.onQuiz,
+                  child: const Text('快刷这一批', style: TextStyle(fontSize: 12)),
+                ),
+                TextButton(
+                  onPressed: widget.onMore,
+                  child: const Text('更多', style: TextStyle(fontSize: 12)),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 12),
@@ -443,37 +474,9 @@ class _TodayTaskCardState extends State<TodayTaskCard> {
                   ),
                 ),
               ),
-              if (!empty) ...<Widget>[
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: widget.onQuiz,
-                  child: const Text('快刷', style: TextStyle(fontSize: 12)),
-                ),
-              ],
+              if (!empty) ...<Widget>[const SizedBox(width: 8)],
             ],
           ),
-          if (!empty && moreCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      '另有 $moreCount 个没排入（受每日上限限制）',
-                      style: TextStyle(fontSize: 11, color: p.muted),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: widget.onAll,
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    child: const Text('全部加入', style: TextStyle(fontSize: 11)),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
