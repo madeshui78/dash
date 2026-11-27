@@ -11,7 +11,10 @@ import '../theme/ui.dart';
 import '../widgets/app_toast.dart';
 
 class WritingPage extends StatefulWidget {
-  const WritingPage({super.key});
+  const WritingPage({super.key, this.embedded = false});
+
+  /// 作为常驻页签嵌在首页时，不要自己的 AppBar（外面已经有了）
+  final bool embedded;
 
   @override
   State<WritingPage> createState() => _WritingPageState();
@@ -158,19 +161,43 @@ class _WritingPageState extends State<WritingPage> {
 
     return Scaffold(
       backgroundColor: p.canvas,
-      appBar: AppBar(
-        title: const Text('写作练习'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: '历史',
-            onPressed: _openHistory,
-            icon: const Icon(Icons.history, size: 20),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: const Text('写作练习'),
+              actions: <Widget>[
+                IconButton(
+                  tooltip: '历史',
+                  onPressed: _openHistory,
+                  icon: const Icon(Icons.history, size: 20),
+                ),
+              ],
+            ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding: EdgeInsets.fromLTRB(16, widget.embedded ? 4 : 12, 16, 28),
         children: <Widget>[
+          if (widget.embedded)
+            Row(
+              children: <Widget>[
+                Text(
+                  '写作练习',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: p.ink,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _openHistory,
+                  icon: const Icon(Icons.history, size: 16),
+                  label: const Text('历史', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
           Text(
             '评分标准',
             style: TextStyle(fontSize: UiText.caption, color: p.muted),

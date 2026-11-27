@@ -633,6 +633,21 @@ class _WordListPageState extends State<WordListPage> {
                                 ? data.unfinished.length
                                 : data.catchUpCap,
                             moreCount: _queueMore(data),
+                            dailyCount: data.dailyCount,
+                            reviewCap: data.reviewCap,
+                            catchUpCap: data.catchUpCap,
+                            onDaily: (int v) async {
+                              await StudySettings.setDailyCount(v);
+                              if (mounted) _reload();
+                            },
+                            onReview: (int v) async {
+                              await StudySettings.setReviewCap(v);
+                              if (mounted) _reload();
+                            },
+                            onCatch: (int v) async {
+                              await StudySettings.setCatchUpCap(v);
+                              if (mounted) _reload();
+                            },
                             onAll: () {
                               final List<Word> q = _todayQueue(data, all: true);
                               if (q.isNotEmpty) _openSession(q);

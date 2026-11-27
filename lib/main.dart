@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _pages = <Widget>[
-      const EssayPage(embedded: true),
+      const _EssayHost(),
       WordListPage(refreshTick: _refreshTick),
       WrongWordPage(
         refreshTick: _refreshTick,
@@ -183,28 +183,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onTap(int i) {
-    // 已经在作文页时再点一次「作文」：进入写作练习
-    if (i == 0 && _index == 0) {
-      _openWriting();
+    if (i == 0) {
+      if (_index == 0) {
+        // 已在作文页：在读 / 写之间切换，页面和导航都不消失
+        final bool next = !_EssayHost.writing.value;
+        HapticFeedback.mediumImpact();
+        setState(() => _writingPulse = next);
+        _EssayHost.writing.value = next;
+        return;
+      }
+      _EssayHost.writing.value = false;
+      setState(() {
+        _index = 0;
+        _writingPulse = false;
+      });
       return;
     }
     setState(() => _index = i);
     if (i == 1 || i == 2) _refreshTick.value++;
   }
 
+  /// 底部「作文」图标：读写两种状态
   bool _writingPulse = false;
-
-  Future<void> _openWriting() async {
-    if (_writingPulse) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _writingPulse = true);
-    // 让图标先翻成笔，再打开页面
-    await Future<void>.delayed(const Duration(milliseconds: 240));
-    if (!mounted) return;
-    await Navigator.of(context)
-        .push<Object?>(SmoothRoute<Object?>(page: const WritingPage()));
-    if (mounted) setState(() => _writingPulse = false);
-  }
 
   Future<void> _openPage(Widget page, String title) async {
     await Navigator.of(context).push<Object?>(
@@ -248,7 +248,13 @@ class _HomePageState extends State<HomePage> {
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
           ),
-          title: Text(_titles[_index]),
+          title: _index == 0
+              ? ValueListenableBuilder<bool>(
+                  valueListenable: _EssayHost.writing,
+                  builder: (BuildContext context, bool w, Widget? child) =>
+                      Text(w ? '写作' : '作文'),
+                )
+              : Text(_titles[_index]),
           actions: <Widget>[
             if (_index == 1)
               FxIconButton(
@@ -265,6 +271,13 @@ class _HomePageState extends State<HomePage> {
           onSwitchTrack: _switchTrack,
           onOpenPage: _openPage,
           onPush: _push,
+          onWriting: () {
+            _EssayHost.writing.value = true;
+            setState(() {
+              _index = 0;
+              _writingPulse = true;
+            });
+          },
         ),
         body: _AnimatedBody(index: _index, pages: _pages),
         bottomNavigationBar: _ArcNavBar(
@@ -273,6 +286,28 @@ class _HomePageState extends State<HomePage> {
           onTap: _onTap,
         ),
         backgroundColor: p.canvas,
+      ),
+    );
+  }
+}
+
+/// 作文页签的宿主：同一个 tab 里在「读 / 写」之间切换，
+/// 底部导航和侧边栏都保持可见。
+class _EssayHost extends StatelessWidget {
+  const _EssayHost();
+
+  static final ValueNotifier<bool> writing = ValueNotifier<bool>(false);
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: writing,
+      builder: (BuildContext context, bool w, Widget? child) => IndexedStack(
+        index: w ? 1 : 0,
+        children: const <Widget>[
+          EssayPage(embedded: true),
+          WritingPage(embedded: true),
+        ],
       ),
     );
   }
@@ -391,7 +426,7 @@ class _ArcNavBar extends StatelessWidget {
             child: Row(
               children: List<Widget>.generate(4, (int i) {
                 final bool on = i == index;
-                final bool writing = i == 0 && writingPulse;
+                final bool writing = i == 0 && writingPulse && on;
                 return Expanded(
                   child: _NavItem(
                     icon: writing
@@ -511,6 +546,7 @@ class _AppDrawer extends StatelessWidget {
     required this.onSwitchTrack,
     required this.onOpenPage,
     required this.onPush,
+    required this.onWriting,
   });
 
   final String track;
@@ -518,6 +554,7 @@ class _AppDrawer extends StatelessWidget {
   final Future<void> Function(String) onSwitchTrack;
   final Future<void> Function(Widget, String) onOpenPage;
   final Future<void> Function(Widget) onPush;
+  final VoidCallback onWriting;
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +663,7 @@ class _AppDrawer extends StatelessWidget {
                   fx: TapFx.tilt,
                   onTap: () {
                     Navigator.of(context).pop();
-                    onPush(const WritingPage());
+                    onWriting();
                   },
                 ),
                 _DrawerRow(

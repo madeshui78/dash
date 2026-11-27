@@ -293,13 +293,22 @@ class DueCard extends StatelessWidget {
 }
 
 /// 今日任务：把「补学 + 新词 + 到期」合成一个入口，减少自己拼数字。
-class TodayTaskCard extends StatelessWidget {
+class TodayTaskCard extends StatefulWidget {
   final int newCount;
   final int dueCount;
   final int catchUpCount;
 
   /// 受上限限制没排进来的数量
   final int moreCount;
+
+  /// 每天抽多少新词、排多少复习/补学，点开卡片就能改
+  final int dailyCount;
+  final int reviewCap;
+  final int catchUpCap;
+  final ValueChanged<int> onDaily;
+  final ValueChanged<int> onReview;
+  final ValueChanged<int> onCatch;
+
   final VoidCallback onStart;
   final VoidCallback onAll;
   final VoidCallback onQuiz;
@@ -309,6 +318,12 @@ class TodayTaskCard extends StatelessWidget {
     required this.newCount,
     required this.dueCount,
     required this.catchUpCount,
+    required this.dailyCount,
+    required this.reviewCap,
+    required this.catchUpCap,
+    required this.onDaily,
+    required this.onReview,
+    required this.onCatch,
     required this.onStart,
     required this.onAll,
     required this.onQuiz,
@@ -316,8 +331,19 @@ class TodayTaskCard extends StatelessWidget {
   });
 
   @override
+  State<TodayTaskCard> createState() => _TodayTaskCardState();
+}
+
+class _TodayTaskCardState extends State<TodayTaskCard> {
+  bool _open = false;
+
+  @override
   Widget build(BuildContext context) {
     final ModulePalette p = ModulePalette.of(context);
+    final int newCount = widget.newCount;
+    final int dueCount = widget.dueCount;
+    final int catchUpCount = widget.catchUpCount;
+    final int moreCount = widget.moreCount;
     final int total = newCount + dueCount + catchUpCount;
     final bool empty = total == 0;
 
@@ -340,18 +366,32 @@ class TodayTaskCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(
-                empty ? Icons.check_circle_outline : Icons.today_outlined,
-                size: 18,
-                color: empty ? p.muted : p.word,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                empty ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了') : '今日任务',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: p.ink,
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _open = !_open),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      empty ? Icons.check_circle_outline : Icons.today_outlined,
+                      size: 18,
+                      color: empty ? p.muted : p.word,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      empty ? (moreCount > 0 ? '今天没排任务' : '今天的词清完了') : '今日任务',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: p.ink,
+                      ),
+                    ),
+                    Icon(
+                      _open ? Icons.expand_less : Icons.expand_more,
+                      size: 16,
+                      color: p.muted,
+                    ),
+                  ],
                 ),
               ),
               const Spacer(),
@@ -368,6 +408,16 @@ class TodayTaskCard extends StatelessWidget {
                 : parts.join(' · '),
             style: TextStyle(fontSize: 12, color: p.muted),
           ),
+          if (_open) ...<Widget>[
+            const SizedBox(height: 8),
+            _stepRow(p, '新词', widget.dailyCount, 1, 100, widget.onDaily),
+            _stepRow(p, '复习', widget.reviewCap, 0, 200, widget.onReview),
+            _stepRow(p, '补学', widget.catchUpCap, 0, 100, widget.onCatch),
+            Text(
+              '改完立刻生效；设为 0 表示今天不排这一类',
+              style: TextStyle(fontSize: 11, color: p.muted),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: <Widget>[
@@ -376,8 +426,8 @@ class TodayTaskCard extends StatelessWidget {
                   height: 42,
                   child: FilledButton.icon(
                     onPressed: empty
-                        ? (moreCount > 0 ? onAll : onQuiz)
-                        : onStart,
+                        ? (moreCount > 0 ? widget.onAll : widget.onQuiz)
+                        : widget.onStart,
                     icon: Icon(empty ? Icons.bolt : Icons.play_arrow, size: 18),
                     label: Text(
                       empty ? (moreCount > 0 ? '全部加入' : '再练一组') : '开始',
@@ -396,7 +446,7 @@ class TodayTaskCard extends StatelessWidget {
               if (!empty) ...<Widget>[
                 const SizedBox(width: 8),
                 TextButton(
-                  onPressed: onQuiz,
+                  onPressed: widget.onQuiz,
                   child: const Text('快刷', style: TextStyle(fontSize: 12)),
                 ),
               ],
@@ -414,7 +464,7 @@ class TodayTaskCard extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: onAll,
+                    onPressed: widget.onAll,
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -426,6 +476,49 @@ class TodayTaskCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _stepRow(
+    ModulePalette p,
+    String label,
+    int value,
+    int min,
+    int max,
+    ValueChanged<int> onChanged,
+  ) {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 32,
+          child: Text(label, style: TextStyle(fontSize: 12, color: p.muted)),
+        ),
+        const Spacer(),
+        IconButton(
+          tooltip: '减少',
+          visualDensity: VisualDensity.compact,
+          onPressed: value > min ? () => onChanged(value - 1) : null,
+          icon: Icon(Icons.remove, size: 16, color: p.muted),
+        ),
+        SizedBox(
+          width: 30,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: p.ink,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: '增加',
+          visualDensity: VisualDensity.compact,
+          onPressed: value < max ? () => onChanged(value + 1) : null,
+          icon: Icon(Icons.add, size: 16, color: p.muted),
+        ),
+      ],
     );
   }
 }
