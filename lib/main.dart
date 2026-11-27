@@ -22,6 +22,7 @@ import 'pages/sections_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/stats_page.dart';
 import 'pages/word_list_page.dart';
+import 'pages/writing_page.dart';
 import 'pages/wrong_word_page.dart';
 import 'services/chat_focus.dart';
 import 'services/essay_focus.dart';
@@ -144,7 +145,16 @@ class _HomePageState extends State<HomePage> {
     ];
     ChatFocus.mode.addListener(_onModeRequest);
     EssayFocus.switchToEssay.addListener(_onEssayTab);
+    // 从提醒通知点进来：直接切到单词本
+    _routeChannel.setMethodCallHandler((MethodCall call) async {
+      if (call.method == 'openStudy' && mounted) {
+        setState(() => _index = 1);
+      }
+      return null;
+    });
   }
+
+  static const MethodChannel _routeChannel = MethodChannel('app.reminder');
 
   void _onEssayTab() {
     if (!EssayFocus.switchToEssay.value) return;
@@ -161,6 +171,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     ChatFocus.mode.removeListener(_onModeRequest);
     EssayFocus.switchToEssay.removeListener(_onEssayTab);
+    _routeChannel.setMethodCallHandler(null);
     _refreshTick.dispose();
     super.dispose();
   }
@@ -556,6 +567,16 @@ class _AppDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).pop();
                     onPush(ImportPage(refreshTick: refreshTick));
+                  },
+                ),
+                _DrawerRow(
+                  icon: Icons.rate_review_outlined,
+                  label: '写作练习',
+                  color: p.essay,
+                  fx: TapFx.tilt,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPush(const WritingPage());
                   },
                 ),
                 _DrawerRow(

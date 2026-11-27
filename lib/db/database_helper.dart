@@ -11,6 +11,7 @@ import '../models/chat_session.dart';
 import '../models/essay.dart';
 import '../models/word.dart';
 import '../models/word_note.dart';
+import '../models/writing.dart';
 import '../services/ai_service.dart';
 
 const Uuid _uuid = Uuid();
@@ -83,7 +84,7 @@ class DatabaseHelper {
   /// v15：对话分类型 + digest_records（后台提交的错词原文）。
   /// v16：digest_qa（复盘悬浮窗的追问，挂在某条复盘结果下）。
   /// v17：word_notes（作文里单词的批注，按文章独立）。
-  static const int _dbVersion = 17;
+  static const int _dbVersion = 18;
 
   static const String tableWords = 'words';
   static const String tableReviews = 'reviews';
@@ -384,6 +385,20 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_word_notes_essay ON word_notes (essay_id)',
     );
+
+    // 写作练习：用户自己写的作文 + AI 批改结果，一篇一条
+    await db.execute('''
+      CREATE TABLE writings (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        track      TEXT NOT NULL,
+        topic      TEXT NOT NULL DEFAULT '',
+        content    TEXT NOT NULL,
+        score      REAL NOT NULL DEFAULT 0,
+        feedback   TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_writings_track ON writings (track)');
   }
 
   /// 老版本升级：只会补上缺失的列/表，不会动已有数据
@@ -628,6 +643,22 @@ class DatabaseHelper {
       ''');
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_word_notes_essay ON word_notes (essay_id)',
+      );
+    }
+    if (oldVersion < 18) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS writings (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          track      TEXT NOT NULL,
+          topic      TEXT NOT NULL DEFAULT '',
+          content    TEXT NOT NULL,
+          score      REAL NOT NULL DEFAULT 0,
+          feedback   TEXT NOT NULL DEFAULT '',
+          created_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_writings_track ON writings (track)',
       );
     }
   }
@@ -1402,6 +1433,40 @@ class DatabaseHelper {
       where: 'track = ? AND done = 0',
       whereArgs: <Object?>[track],
     );
+  }
+
+  // ---------------- 写作练习 ----------------
+
+  Future<int> addWriting(Writing w) async {
+    final Database db = await database;
+    return db.insert('writings', <String, Object?>{
+      'track': w.track,
+      'topic': w.topic,
+      'content': w.content,
+      'score': w.score,
+      'feedback': w.feedback,
+      'created_at': w.createdAt.millisecondsSinceEpoch,
+    });
+  }
+
+  Future<List<Writing>> getWritings({
+    required String track,
+    int limit = 50,
+  }) async {
+    final Database db = await database;
+    final List<Map<String, Object?>> rows = await db.query(
+      'writings',
+      where: 'track = ?',
+      whereArgs: <Object?>[track],
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return rows.map(Writing.fromMap).toList();
+  }
+
+  Future<void> deleteWriting(int id) async {
+    final Database db = await database;
+    await db.delete('writings', where: 'id = ?', whereArgs: <Object?>[id]);
   }
 
   /// 错词本：只取当前赛道、未掌握的错词，错得多的排前面。

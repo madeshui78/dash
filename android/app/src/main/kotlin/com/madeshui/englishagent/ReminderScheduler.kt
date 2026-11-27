@@ -109,7 +109,10 @@ object ReminderScheduler {
         ensureChannel(ctx)
         if (!hasPermission(ctx)) return
 
-        val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+        val launch = Intent(ctx, MainActivity::class.java).apply {
+            putExtra("open", "study")
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         val pi = PendingIntent.getActivity(
             ctx,
             0,
